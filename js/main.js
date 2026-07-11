@@ -1,17 +1,50 @@
 // ===== Škola hrou – menu a navigácia =====
-import { el, updateBadge, newEpoch } from './core.js';
+import { el, updateBadge, newEpoch, levelInfo, applyCursive, getCursive, setCursive, confetti, toast } from './core.js';
 import { GAMES } from './games.js';
-import { canSpeak, hasSlovakVoice, ensureAudio, sfx } from './audio.js';
+import { canSpeak, hasSlovakVoice, ensureAudio, sfx, speak } from './audio.js';
 
 const app = document.getElementById('app');
 const title = document.getElementById('page-title');
 const homeBtn = document.getElementById('btn-home');
+const levelBtn = document.getElementById('level-badge');
 
 homeBtn.addEventListener('click', () => { location.hash = ''; });
+levelBtn.addEventListener('click', () => {
+  const info = levelInfo();
+  toast(info.next
+    ? `${info.emoji} Level ${info.level} – ${info.title}. Do ďalšieho: ${info.toNext} 💎`
+    : `${info.emoji} Level ${info.level} – ${info.title}. Najvyšší level! 👑`);
+});
+
+// oslava pri novom leveli
+window.addEventListener('levelup', (e) => {
+  const info = e.detail;
+  ensureAudio();
+  sfx.win();
+  confetti(24);
+  // oneskorene, aby oslavný odkaz prekryl bežnú pochvalu „+1 💎"
+  setTimeout(() => {
+    toast(`🎉 NOVÝ LEVEL ${info.level}! Si ${info.title} ${info.emoji}`, 3600);
+    speak(`Nový level! Si ${info.title}!`, 1);
+  }, 900);
+});
 
 function renderMenu() {
   title.textContent = 'Škola hrou';
   app.innerHTML = '';
+
+  const info = levelInfo();
+  const lvlBox = el('div', 'level-box');
+  lvlBox.appendChild(el('div', '', `${info.emoji} <b>Level ${info.level} – ${info.title}</b>`));
+  const bar = el('div', 'progress-bar');
+  const fill = el('div', 'fill');
+  fill.style.width = info.pct + '%';
+  bar.appendChild(fill);
+  lvlBox.appendChild(bar);
+  lvlBox.appendChild(el('div', 'muted',
+    info.next ? `Do ďalšieho levelu: ${info.toNext} 💎` : 'Najvyšší level! 👑'));
+  app.appendChild(lvlBox);
+
   app.appendChild(el('p', 'subtitle', 'Ahoj! Vyber si hru 👇'));
 
   const grid = el('div', 'menu-grid');
@@ -29,12 +62,20 @@ function renderMenu() {
   });
   app.appendChild(grid);
 
-  // upozornenie na slovenský hlas (zobrazí sa len ak treba)
+  // prepínač písaného písma
+  const cursiveRow = el('div', 'settings-row');
+  cursiveRow.appendChild(el('span', '', '✍️ Písmo pri čítaní:'));
+  const tgl = el('button', 'btn btn-toggle', '');
+  const paint = () => { tgl.innerHTML = getCursive() ? '✍️ Písané' : '🅰️ Tlačené'; };
+  paint();
+  tgl.addEventListener('click', () => { ensureAudio(); sfx.click(); setCursive(!getCursive()); paint(); });
+  cursiveRow.appendChild(tgl);
+  app.appendChild(cursiveRow);
+
   if (canSpeak() && !hasSlovakVoice()) {
     setTimeout(() => {
-      if (!canSpeak() || hasSlovakVoice()) return;
-      const existing = document.getElementById('voice-hint');
-      if (existing || location.hash) return;
+      if (!canSpeak() || hasSlovakVoice() || location.hash) return;
+      if (document.getElementById('voice-hint')) return;
       const banner = el('div', 'hint-banner',
         '💡 <b>Tip:</b> Ak hry nehovoria pekne po slovensky, nainštalujte v mobile slovenský hlas ' +
         '(Nastavenia → Systém → Jazyk → Prevod textu na reč, alebo aplikácia „Google rozpoznávanie a syntéza reči").');
@@ -46,11 +87,12 @@ function renderMenu() {
   const parents = el('div', 'parents', `
     <h3>👨‍👩‍👧 Pre rodičov</h3>
     <ul>
-      <li><b>Ušká</b> – tréning rozlišovania hlások (Š/Č, S/Š, C/Č, Z/Ž). Slovo zaznie nahlas, dieťa vyberie hlásku, ktorú počulo. Je to doplnok k logopédii, nenahrádza odborníka.</li>
-      <li><b>Zvuky</b> – sluchové vnímanie a počítanie: dieťa spočíta zahrané tóny.</li>
-      <li><b>Počítanie</b> – sčítanie a odčítanie do 10/20 a porovnávanie čísel (učivo 1. ročníka).</li>
-      <li><b>Čítanie</b> – veľké tlačené slová, prvé písmená, skladanie slov.</li>
-      <li>Za správne odpovede zbiera 💎 diamanty a v <b>Môj domček</b> sa jej za ne stavia pixelový svet.</li>
+      <li><b>Ušká</b> – tréning rozlišovania hlások (Š/Č, S/Š, C/Č, Z/Ž). Slovo zaznie nahlas, dieťa vyberie hlásku, ktorú počulo. Doplnok k logopédii, nenahrádza odborníka.</li>
+      <li><b>Zvuky</b> – sluchové vnímanie a počítanie zahraných tónov.</li>
+      <li><b>Počítanie</b> – sčítanie/odčítanie do 10 a 20, dopĺňanie čísla a porovnávanie (učivo 1. ročníka). Príklad sa prečíta nahlas po slovensky.</li>
+      <li><b>Čítanie</b> – slová, prvé písmená, skladanie slov aj čítanie viet. Prepínač <b>Tlačené/Písané</b> precvičí čítanie písaného písma.</li>
+      <li>Pri chybe hra <b>nejde ďalej</b> – dieťa skúša znova, po druhom pokuse sa správna odpoveď rozbliká ako pomôcka.</li>
+      <li>Za odpovede zbiera 💎 a stúpa v <b>leveloch</b>; v <b>Chalúpke</b> si za diamanty kupuje domov a ozdoby.</li>
       <li>Zvuk funguje po prvom ťuknutí na obrazovku (pravidlo prehliadača).</li>
     </ul>
   `);
@@ -59,6 +101,7 @@ function renderMenu() {
 
 function render() {
   newEpoch(); // zruší čakajúce časovače z predchádzajúcej obrazovky
+  updateBadge(); // obnoví diamanty a level v hlavičke
   const hash = location.hash.replace(/^#\/?/, '');
   const game = GAMES.find(g => g.id === hash);
   window.scrollTo(0, 0);
@@ -69,5 +112,6 @@ function render() {
 }
 
 window.addEventListener('hashchange', render);
+applyCursive();
 updateBadge();
 render();

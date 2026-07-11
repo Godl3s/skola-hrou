@@ -1,15 +1,16 @@
 // ===== Všetky hry =====
 import {
-  el, shuffle, randInt, sample, award, toast, confetti,
-  progressDots, lsGet, lsSet, getDiamonds, later,
+  el, shuffle, randInt, sample, award, spend, toast, confetti,
+  progressDots, lsGet, lsSet, getDiamonds, getEarned, levelInfo, later,
+  getCursive, setCursive,
 } from './core.js';
 import {
-  speak, canSpeak, hasSlovakVoice, sfx, ensureAudio,
-  playCountSounds, COUNT_SOUND_NAMES,
+  speak, canSpeak, sfx, ensureAudio, playCountSounds, COUNT_SOUND_NAMES,
+  speakMath, speakNumber, numberToSlovak,
 } from './audio.js';
 import {
   SOUND_PAIRS, READING_WORDS, BUILD_WORDS, PIXEL_TEMPLATES, FREE_COLORS,
-  HOUSE_STEPS, HOUSE_SCENE, HOUSE_STEP_COST, PRAISES, ENCOURAGE,
+  PRAISES, ENCOURAGE, HOME_TIERS, DECORATIONS, SENTENCES,
 } from './data.js';
 
 // ---------- spoločné pomôcky ----------
@@ -19,9 +20,10 @@ function praiseNow() {
   return p;
 }
 
-function levelScreen(container, introHtml, levels, onPick) {
+function levelScreen(container, introHtml, levels, onPick, extra) {
   container.innerHTML = '';
   if (introHtml) container.appendChild(el('p', 'subtitle', introHtml));
+  if (extra) container.appendChild(extra);
   const list = el('div', 'level-list');
   levels.forEach(lvl => {
     const b = el('button', 'btn', `<span class="lvl-emoji">${lvl.emoji}</span> ${lvl.label}`);
@@ -30,6 +32,8 @@ function levelScreen(container, introHtml, levels, onPick) {
   });
   container.appendChild(list);
 }
+
+const MASCOTS = ['🦊', '🐼', '🐵', '🐸', '🐷', '🐰', '🐻', '🐧'];
 
 function resultScreen(container, score, total, onAgain) {
   let stars, bonus, msg;
@@ -47,14 +51,21 @@ function resultScreen(container, score, total, onAgain) {
   const panel = el('div', 'game-panel');
   panel.appendChild(el('div', 'result-stars', stars));
   panel.appendChild(el('div', 'result-score', `Správne: ${score} z ${total}`));
-  panel.appendChild(el('p', '', msg));
+
+  const mascot = el('div', 'mascot');
+  mascot.appendChild(el('div', 'mascot-face', sample(MASCOTS)));
+  mascot.appendChild(el('div', 'mascot-bubble', msg));
+  panel.appendChild(mascot);
+
   if (bonus > 0) panel.appendChild(el('p', '', `Bonus: +${bonus} 💎`));
   const row = el('div', 'stack');
   const again = el('button', 'btn btn-primary btn-big', '🔁 Ešte raz');
   again.addEventListener('click', onAgain);
-  const home = el('button', 'btn btn-big', '🏠 Domov');
+  const shop = el('button', 'btn btn-green btn-big', '🏠 Do chalúpky');
+  shop.addEventListener('click', () => { location.hash = '#/chalupka'; });
+  const home = el('button', 'btn btn-big', '🎮 Iná hra');
   home.addEventListener('click', () => { location.hash = ''; });
-  row.append(again, home);
+  row.append(again, shop, home);
   panel.appendChild(row);
   container.appendChild(panel);
 }
@@ -72,6 +83,34 @@ function ttsHintBanner() {
       '🔇 Toto zariadenie nevie čítať nahlas. Slová sa zobrazia napísané – prečítajte ich dieťaťu vy.');
   }
   return null;
+}
+
+function cursiveToggle(onChange) {
+  const b = el('button', 'btn btn-toggle', '');
+  const paint = () => { b.innerHTML = getCursive() ? '✍️ Písané' : '🅰️ Tlačené'; };
+  paint();
+  b.addEventListener('click', () => {
+    ensureAudio(); sfx.click();
+    setCursive(!getCursive());
+    paint();
+    if (onChange) onChange();
+  });
+  return b;
+}
+
+// Vytvorí obsluhu odpovede s OPAKOVANÍM po chybe.
+// st = { firstTry, locked, tries }
+function makeState() { return { firstTry: true, locked: false, tries: 0 }; }
+
+const RETRY_MSGS = ['Skús to ešte raz! 💪', 'Ešte raz to skús! 🙂', 'Nevadí, skús znova! 💪', 'Skúsime znova? 😊'];
+function onWrongDefault(st, btn, reveal) {
+  st.firstTry = false;
+  st.tries++;
+  btn.classList.add('incorrect');
+  btn.disabled = true;
+  sfx.wrong();
+  toast(st.tries >= 2 ? 'Pozri, správna odpoveď svieti! 👉' : sample(RETRY_MSGS));
+  if (st.tries >= 2 && reveal) reveal();
 }
 
 // ---------- 1) LOGOPÉDIA ----------
@@ -99,7 +138,7 @@ const gameLogopedia = {
         if (idx >= TOTAL) { resultScreen(container, score, TOTAL, () => start(pair)); return; }
         dots.set(idx, 'current');
         const item = words[idx];
-        let locked = false;
+        const st = makeState();
 
         container.innerHTML = '';
         const banner = ttsHintBanner();
@@ -108,7 +147,7 @@ const gameLogopedia = {
 
         const panel = el('div', 'game-panel');
         panel.appendChild(el('div', 'big-emoji', item.e));
-        const wordDisplay = el('div', 'word-display', ttsOk ? '• • •' : item.w.toUpperCase());
+        const wordDisplay = el('div', 'word-display read-word', ttsOk ? '• • •' : item.w.toUpperCase());
         panel.appendChild(wordDisplay);
 
         if (ttsOk) {
@@ -120,31 +159,28 @@ const gameLogopedia = {
         panel.appendChild(el('p', '', `Ktorú hlásku počuješ – <b>${pair.a}</b> alebo <b>${pair.b}</b>?`));
 
         const row = el('div', 'row');
+        const btnFor = {};
+        const reveal = () => { btnFor[item.t].classList.add('hint'); };
         [pair.a, pair.b].forEach(letter => {
           const b = el('button', 'btn btn-huge', letter);
+          btnFor[letter] = b;
           b.addEventListener('click', () => {
-            if (locked) return;
-            locked = true;
+            if (st.locked) return;
             ensureAudio();
-            const ok = letter === item.t;
-            wordDisplay.innerHTML = highlightWord(item.w.toUpperCase(), item.t);
-            if (ok) {
+            if (letter === item.t) {
+              st.locked = true;
               b.classList.add('correct');
+              b.classList.remove('hint');
+              wordDisplay.innerHTML = highlightWord(item.w.toUpperCase(), item.t);
               sfx.correct();
-              score++;
-              award(1);
-              toast(`${praiseNow()} +1 💎`);
+              if (st.firstTry) { score++; award(1); confetti(6); toast(`${praiseNow()} +1 💎`); }
+              else toast(praiseNow());
+              dots.set(idx, st.firstTry ? 'ok' : 'bad');
+              idx++;
+              later(next, 1600);
             } else {
-              b.classList.add('incorrect');
-              sfx.wrong();
-              row.querySelectorAll('.btn').forEach(x => {
-                if (x.textContent === item.t) x.classList.add('correct');
-              });
-              toast(sample(ENCOURAGE));
+              onWrongDefault(st, b, reveal);
             }
-            dots.set(idx, ok ? 'ok' : 'bad');
-            idx++;
-            later(next, 1700);
           });
           row.appendChild(b);
         });
@@ -187,7 +223,8 @@ const gameZvuky = {
         dots.set(idx, 'current');
         const n = randInt(lvl.min, lvl.max);
         const kind = sample(COUNT_SOUND_NAMES);
-        let played = false, playing = false, locked = false;
+        const st = makeState();
+        let playing = false;
 
         container.innerHTML = '';
         container.appendChild(dots.node);
@@ -202,29 +239,26 @@ const gameZvuky = {
 
         const grid = el('div', 'numbers-grid');
         const numBtns = [];
+        const reveal = () => { numBtns[n - 1].classList.add('hint'); };
         for (let i = 1; i <= lvl.max; i++) {
           const b = el('button', 'btn', String(i));
           b.disabled = true;
           b.addEventListener('click', () => {
-            if (locked || playing) return;
-            locked = true;
+            if (st.locked || playing || b.disabled) return;
             ensureAudio();
-            const ok = i === n;
-            if (ok) {
+            if (i === n) {
+              st.locked = true;
               b.classList.add('correct');
+              b.classList.remove('hint');
               sfx.correct();
-              score++;
-              award(1);
-              toast(`${praiseNow()} +1 💎`);
+              if (st.firstTry) { score++; award(1); confetti(6); toast(`${praiseNow()} +1 💎`); }
+              else toast(praiseNow());
+              dots.set(idx, st.firstTry ? 'ok' : 'bad');
+              idx++;
+              later(next, 1600);
             } else {
-              b.classList.add('incorrect');
-              sfx.wrong();
-              numBtns[n - 1].classList.add('correct');
-              toast(`Bolo ich ${n}. ${sample(ENCOURAGE)}`);
+              onWrongDefault(st, b, reveal);
             }
-            dots.set(idx, ok ? 'ok' : 'bad');
-            idx++;
-            later(next, 1700);
           });
           numBtns.push(b);
           grid.appendChild(b);
@@ -233,7 +267,7 @@ const gameZvuky = {
         container.appendChild(panel);
 
         playBtn.addEventListener('click', async () => {
-          if (playing || locked) return;
+          if (playing || st.locked) return;
           playing = true;
           playBtn.disabled = true;
           ensureAudio();
@@ -242,10 +276,9 @@ const gameZvuky = {
             setTimeout(() => { speaker.style.transform = 'scale(1)'; }, 180);
           });
           playing = false;
-          played = true;
           playBtn.disabled = false;
           playBtn.innerHTML = '🔁 Vypočuj ešte raz';
-          numBtns.forEach(b => { b.disabled = false; });
+          numBtns.forEach(b => { if (!b.classList.contains('incorrect')) b.disabled = false; });
         });
       };
       next();
@@ -281,9 +314,11 @@ const gameMatika = {
         { emoji: '➕', label: 'Sčítanie do 10', type: 'add10' },
         { emoji: '➖', label: 'Odčítanie do 10', type: 'sub10' },
         { emoji: '🚀', label: 'Plus a mínus do 20', type: 'mix20' },
+        { emoji: '🧩', label: 'Doplň číslo (5 + ▢ = 8)', type: 'missing' },
         { emoji: '⚖️', label: 'Porovnaj čísla', type: 'compare' },
       ],
-      lvl => (lvl.type === 'compare' ? startCompare(lvl) : start(lvl))
+      lvl => (lvl.type === 'compare' ? startCompare(lvl)
+        : lvl.type === 'missing' ? startMissing(lvl) : start(lvl))
     );
 
     const genProblem = (type) => {
@@ -298,7 +333,6 @@ const gameMatika = {
         const b = randInt(0, a);
         return { a, b, op: '−', ans: a - b, max: 10 };
       }
-      // mix20
       if (Math.random() < 0.5) {
         const a = randInt(1, 19);
         const b = randInt(1, 20 - a);
@@ -318,14 +352,17 @@ const gameMatika = {
         if (idx >= TOTAL) { resultScreen(container, score, TOTAL, () => start(lvl)); return; }
         dots.set(idx, 'current');
         const p = genProblem(lvl.type);
-        let locked = false;
+        const st = makeState();
 
         container.innerHTML = '';
         container.appendChild(dots.node);
         const panel = el('div', 'game-panel');
         panel.appendChild(el('div', 'math-expr', `${p.a} ${p.op} ${p.b} = ?`));
 
-        // vizuálna pomôcka kockami (len pri menších číslach)
+        const replay = el('button', 'btn btn-blue', '🔊 Prečítaj príklad');
+        replay.addEventListener('click', () => { ensureAudio(); speakMath(p.a, p.b, p.op); });
+        panel.appendChild(replay);
+
         if (p.a <= 10 && p.b <= 10) {
           if (p.op === '+') {
             panel.appendChild(el('div', 'math-blocks', '🟩'.repeat(p.a) + '🟨'.repeat(p.b)));
@@ -336,36 +373,100 @@ const gameMatika = {
         }
 
         const grid = el('div', 'answers-grid');
-        const options = makeOptions(p.ans, p.max);
-        options.forEach(opt => {
+        const btnFor = {};
+        const reveal = () => { if (btnFor[p.ans]) btnFor[p.ans].classList.add('hint'); };
+        makeOptions(p.ans, p.max).forEach(opt => {
           const b = el('button', 'btn', String(opt));
+          btnFor[opt] = b;
           b.addEventListener('click', () => {
-            if (locked) return;
-            locked = true;
+            if (st.locked) return;
             ensureAudio();
-            const ok = opt === p.ans;
-            if (ok) {
+            if (opt === p.ans) {
+              st.locked = true;
               b.classList.add('correct');
+              b.classList.remove('hint');
               sfx.correct();
-              score++;
-              award(1);
-              toast(`${praiseNow()} +1 💎`);
+              if (st.firstTry) { score++; award(1); confetti(6); toast(`${praiseNow()} +1 💎`); }
+              else toast(praiseNow());
+              dots.set(idx, st.firstTry ? 'ok' : 'bad');
+              idx++;
+              later(next, 1500);
             } else {
-              b.classList.add('incorrect');
-              sfx.wrong();
-              grid.querySelectorAll('.btn').forEach(x => {
-                if (x.textContent === String(p.ans)) x.classList.add('correct');
-              });
-              toast(`Správne je ${p.ans}. ${sample(ENCOURAGE)}`);
+              onWrongDefault(st, b, reveal);
             }
-            dots.set(idx, ok ? 'ok' : 'bad');
-            idx++;
-            later(next, 1600);
           });
           grid.appendChild(b);
         });
         panel.appendChild(grid);
         container.appendChild(panel);
+
+        later(() => speakMath(p.a, p.b, p.op), 350);
+      };
+      next();
+    };
+
+    const startMissing = (lvl) => {
+      const TOTAL = 10;
+      const dots = progressDots(TOTAL);
+      let idx = 0, score = 0;
+
+      const gen = () => {
+        const a = randInt(1, 9);
+        const b = randInt(1, 9);
+        const c = a + b;
+        if (Math.random() < 0.5) return { text: `${a} + ▢ = ${c}`, ans: b, a, c, first: true };
+        return { text: `▢ + ${b} = ${c}`, ans: a, b, c, first: false };
+      };
+      const say = (p) => {
+        if (p.first) speak(`${numberToSlovak(p.a)} plus koľko je ${numberToSlovak(p.c)}?`, 0.85);
+        else speak(`Koľko plus ${numberToSlovak(p.b)} je ${numberToSlovak(p.c)}?`, 0.85);
+      };
+
+      const next = () => {
+        if (idx >= TOTAL) { resultScreen(container, score, TOTAL, () => startMissing(lvl)); return; }
+        dots.set(idx, 'current');
+        const p = gen();
+        const st = makeState();
+
+        container.innerHTML = '';
+        container.appendChild(dots.node);
+        const panel = el('div', 'game-panel');
+        panel.appendChild(el('div', 'math-expr', p.text));
+        panel.appendChild(el('p', '', 'Aké číslo patrí do políčka ▢?'));
+
+        const replay = el('button', 'btn btn-blue', '🔊 Prečítaj príklad');
+        replay.addEventListener('click', () => { ensureAudio(); say(p); });
+        panel.appendChild(replay);
+
+        const grid = el('div', 'answers-grid');
+        const btnFor = {};
+        const reveal = () => { if (btnFor[p.ans]) btnFor[p.ans].classList.add('hint'); };
+        makeOptions(p.ans, 12).forEach(opt => {
+          const b = el('button', 'btn', String(opt));
+          btnFor[opt] = b;
+          b.addEventListener('click', () => {
+            if (st.locked) return;
+            ensureAudio();
+            if (opt === p.ans) {
+              st.locked = true;
+              b.classList.add('correct');
+              b.classList.remove('hint');
+              sfx.correct();
+              if (st.firstTry) { score++; award(1); confetti(6); toast(`${praiseNow()} +1 💎`); }
+              else toast(praiseNow());
+              dots.set(idx, st.firstTry ? 'ok' : 'bad');
+              idx++;
+              later(next, 1500);
+            } else {
+              onWrongDefault(st, b, reveal);
+            }
+          });
+          grid.appendChild(b);
+        });
+        panel.appendChild(grid);
+        container.appendChild(panel);
+
+        later(() => say(p), 350);
       };
       next();
     };
@@ -381,7 +482,7 @@ const gameMatika = {
         const a = randInt(0, 10);
         const b = Math.random() < 0.25 ? a : randInt(0, 10);
         const correct = a < b ? '<' : (a > b ? '>' : '=');
-        let locked = false;
+        const st = makeState();
 
         container.innerHTML = '';
         container.appendChild(dots.node);
@@ -392,36 +493,38 @@ const gameMatika = {
         panel.appendChild(el('p', '', `Je ${a} menej, rovnako alebo viac ako ${b}?`));
 
         const grid = el('div', 'answers-grid cols-3');
+        const btnFor = {};
+        const reveal = () => { if (btnFor[correct]) btnFor[correct].classList.add('hint'); };
         [
           { sym: '<', label: 'menej' },
           { sym: '=', label: 'rovnako' },
           { sym: '>', label: 'viac' },
         ].forEach(o => {
           const b2 = el('button', 'btn', `${o.sym}<br><small>${o.label}</small>`);
+          btnFor[o.sym] = b2;
           b2.addEventListener('click', () => {
-            if (locked) return;
-            locked = true;
+            if (st.locked) return;
             ensureAudio();
-            const ok = o.sym === correct;
-            if (ok) {
+            if (o.sym === correct) {
+              st.locked = true;
               b2.classList.add('correct');
+              b2.classList.remove('hint');
               sfx.correct();
-              score++;
-              award(1);
-              toast(`${praiseNow()} +1 💎`);
+              if (st.firstTry) { score++; award(1); confetti(6); toast(`${praiseNow()} +1 💎`); }
+              else toast(praiseNow());
+              dots.set(idx, st.firstTry ? 'ok' : 'bad');
+              idx++;
+              later(next, 1500);
             } else {
-              b2.classList.add('incorrect');
-              sfx.wrong();
-              toast(`Správne: ${a} ${correct} ${b}. ${sample(ENCOURAGE)}`);
+              onWrongDefault(st, b2, reveal);
             }
-            dots.set(idx, ok ? 'ok' : 'bad');
-            idx++;
-            later(next, 1600);
           });
           grid.appendChild(b2);
         });
         panel.appendChild(grid);
         container.appendChild(panel);
+
+        later(() => speak(`Porovnaj: ${numberToSlovak(a)} a ${numberToSlovak(b)}.`, 0.9), 350);
       };
       next();
     };
@@ -435,7 +538,7 @@ const gameCitanie = {
   id: 'citanie',
   name: 'Čítanie',
   emoji: '📖',
-  desc: 'Slová a písmenká',
+  desc: 'Slová, písmená, vety',
   render(container) {
     const pick = () => levelScreen(
       container,
@@ -444,8 +547,15 @@ const gameCitanie = {
         { emoji: '🖼️', label: 'Obrázok a slovo', mode: 'match' },
         { emoji: '🔤', label: 'Prvé písmenko', mode: 'first' },
         { emoji: '🧩', label: 'Poskladaj slovo', mode: 'build' },
+        { emoji: '📜', label: 'Čítaj vetu', mode: 'sentence' },
       ],
-      lvl => (lvl.mode === 'match' ? startMatch() : lvl.mode === 'first' ? startFirst() : startBuild())
+      lvl => {
+        if (lvl.mode === 'match') startMatch();
+        else if (lvl.mode === 'first') startFirst();
+        else if (lvl.mode === 'build') startBuild();
+        else startSentence();
+      },
+      cursiveToggle()
     );
 
     // — obrázok a slovo —
@@ -461,7 +571,7 @@ const gameCitanie = {
         const item = words[idx];
         const distractors = shuffle(READING_WORDS.filter(x => x.w !== item.w)).slice(0, 2);
         const options = shuffle([item, ...distractors]);
-        let locked = false;
+        const st = makeState();
 
         container.innerHTML = '';
         container.appendChild(dots.node);
@@ -470,31 +580,28 @@ const gameCitanie = {
         panel.appendChild(el('p', '', 'Ktoré slovo patrí k obrázku?'));
 
         const stack = el('div', 'stack');
+        const btnFor = {};
+        const reveal = () => { btnFor[item.w].classList.add('hint'); };
         options.forEach(o => {
-          const b = el('button', 'btn btn-big', o.w.toUpperCase());
+          const b = el('button', 'btn btn-big read-word', o.w.toUpperCase());
+          btnFor[o.w] = b;
           b.addEventListener('click', () => {
-            if (locked) return;
-            locked = true;
+            if (st.locked) return;
             ensureAudio();
-            const ok = o.w === item.w;
-            if (ok) {
+            if (o.w === item.w) {
+              st.locked = true;
               b.classList.add('correct');
+              b.classList.remove('hint');
               sfx.correct();
-              score++;
-              award(1);
               speak(item.w);
-              toast(`${sample(PRAISES)} +1 💎`);
+              if (st.firstTry) { score++; award(1); confetti(6); toast(`${sample(PRAISES)} +1 💎`); }
+              else toast(sample(PRAISES));
+              dots.set(idx, st.firstTry ? 'ok' : 'bad');
+              idx++;
+              later(next, 1600);
             } else {
-              b.classList.add('incorrect');
-              sfx.wrong();
-              stack.querySelectorAll('.btn').forEach(x => {
-                if (x.textContent === item.w.toUpperCase()) x.classList.add('correct');
-              });
-              toast(`Toto je ${item.w.toUpperCase()}. ${sample(ENCOURAGE)}`);
+              onWrongDefault(st, b, reveal);
             }
-            dots.set(idx, ok ? 'ok' : 'bad');
-            idx++;
-            later(next, 1700);
           });
           stack.appendChild(b);
         });
@@ -519,7 +626,7 @@ const gameCitanie = {
         const correct = item.w[0].toUpperCase();
         const distractors = shuffle(ALPHABET.filter(l => l !== correct)).slice(0, 3);
         const options = shuffle([correct, ...distractors]);
-        let locked = false;
+        const st = makeState();
 
         container.innerHTML = '';
         container.appendChild(dots.node);
@@ -530,37 +637,34 @@ const gameCitanie = {
           replay.addEventListener('click', () => { ensureAudio(); speak(item.w); });
           panel.appendChild(replay);
         } else {
-          panel.appendChild(el('div', 'word-display', item.w.toUpperCase()));
+          panel.appendChild(el('div', 'word-display read-word', item.w.toUpperCase()));
         }
         panel.appendChild(el('p', '', 'Akým písmenkom sa slovo začína?'));
 
         const grid = el('div', 'answers-grid');
+        const btnFor = {};
+        const reveal = () => { btnFor[correct].classList.add('hint'); };
         options.forEach(letter => {
           const b = el('button', 'btn', letter);
+          btnFor[letter] = b;
           b.addEventListener('click', () => {
-            if (locked) return;
-            locked = true;
+            if (st.locked) return;
             ensureAudio();
-            const ok = letter === correct;
-            const wd = el('div', 'word-display', highlightWord(item.w.toUpperCase(), correct));
-            panel.insertBefore(wd, grid);
-            if (ok) {
+            if (letter === correct) {
+              st.locked = true;
               b.classList.add('correct');
+              b.classList.remove('hint');
+              const wd = el('div', 'word-display read-word', highlightWord(item.w.toUpperCase(), correct));
+              panel.insertBefore(wd, grid);
               sfx.correct();
-              score++;
-              award(1);
-              toast(`${praiseNow()} +1 💎`);
+              if (st.firstTry) { score++; award(1); confetti(6); toast(`${praiseNow()} +1 💎`); }
+              else toast(praiseNow());
+              dots.set(idx, st.firstTry ? 'ok' : 'bad');
+              idx++;
+              later(next, 1700);
             } else {
-              b.classList.add('incorrect');
-              sfx.wrong();
-              grid.querySelectorAll('.btn').forEach(x => {
-                if (x.textContent === correct) x.classList.add('correct');
-              });
-              toast(`Začína sa na ${correct}. ${sample(ENCOURAGE)}`);
+              onWrongDefault(st, b, reveal);
             }
-            dots.set(idx, ok ? 'ok' : 'bad');
-            idx++;
-            later(next, 1800);
           });
           grid.appendChild(b);
         });
@@ -586,8 +690,9 @@ const gameCitanie = {
         const target = item.w.toUpperCase();
         let letters = shuffle(target.split(''));
         if (letters.join('') === target) letters = letters.reverse();
-        let filled = []; // { letter, tileIndex }
-        let locked = false;
+        let filled = [];
+        let fails = 0;
+        const st = makeState();
 
         container.innerHTML = '';
         container.appendChild(dots.node);
@@ -598,7 +703,8 @@ const gameCitanie = {
           replay.addEventListener('click', () => { ensureAudio(); speak(item.w); });
           panel.appendChild(replay);
         }
-        panel.appendChild(el('p', '', 'Poskladaj slovo z písmeniek!'));
+        const hint = el('p', '', 'Poskladaj slovo z písmeniek!');
+        panel.appendChild(hint);
 
         const slots = el('div', 'slots');
         const slotEls = [];
@@ -614,7 +720,7 @@ const gameCitanie = {
         letters.forEach((letter, tileIndex) => {
           const t = el('button', 'btn', letter);
           t.addEventListener('click', () => {
-            if (locked || filled.length >= target.length) return;
+            if (st.locked || filled.length >= target.length) return;
             ensureAudio();
             sfx.click();
             t.classList.add('used');
@@ -630,7 +736,7 @@ const gameCitanie = {
 
         const undo = el('button', 'btn', '↩️ Zmaž písmenko');
         undo.addEventListener('click', () => {
-          if (locked || filled.length === 0) return;
+          if (st.locked || filled.length === 0) return;
           const last = filled.pop();
           tileEls[last.tileIndex].classList.remove('used');
           slotEls[filled.length].textContent = '';
@@ -642,20 +748,22 @@ const gameCitanie = {
         const check = () => {
           const built = filled.map(f => f.letter).join('');
           if (built === target) {
-            locked = true;
+            st.locked = true;
             sfx.correct();
-            score++;
-            award(1);
+            const firstTry = fails === 0;
+            if (firstTry) { score++; award(1); }
             confetti(8);
             speak(item.w);
-            toast(`${sample(PRAISES)} +1 💎`);
-            dots.set(idx, 'ok');
+            toast(firstTry ? `${sample(PRAISES)} +1 💎` : sample(PRAISES));
+            dots.set(idx, firstTry ? 'ok' : 'bad');
             idx++;
             later(next, 1700);
           } else {
+            fails++;
             sfx.wrong();
             slotEls.forEach(s => s.classList.add('wiggle'));
             toast('Skoro! Skús písmenká inak. 🙂');
+            if (fails >= 2) hint.innerHTML = `Pomôcka: slovo je <b class="read-word">${target}</b>`;
             setTimeout(() => {
               slotEls.forEach(s => {
                 s.classList.remove('wiggle', 'filled');
@@ -668,6 +776,50 @@ const gameCitanie = {
         };
 
         if (canSpeak()) later(() => speak(item.w), 350);
+      };
+      next();
+    };
+
+    // — čítaj vetu (samostatné čítanie, aj písané písmo) —
+    const startSentence = () => {
+      const TOTAL = 6;
+      const items = shuffle(SENTENCES).slice(0, TOTAL);
+      const dots = progressDots(TOTAL);
+      let idx = 0;
+
+      const next = () => {
+        if (idx >= TOTAL) { resultScreen(container, TOTAL, TOTAL, startSentence); return; }
+        dots.set(idx, 'current');
+        const item = items[idx];
+
+        container.innerHTML = '';
+        container.appendChild(cursiveToggle());
+        container.appendChild(dots.node);
+        const panel = el('div', 'game-panel');
+        panel.appendChild(el('div', 'big-emoji', item.e));
+        panel.appendChild(el('div', 'sentence read-word', item.s));
+        panel.appendChild(el('p', '', 'Prečítaj vetu nahlas. 📣'));
+
+        const row = el('div', 'stack');
+        if (canSpeak()) {
+          const hear = el('button', 'btn btn-blue', '🔊 Vypočuj vetu');
+          hear.addEventListener('click', () => { ensureAudio(); speak(item.s, 0.8); });
+          row.appendChild(hear);
+        }
+        const done = el('button', 'btn btn-green btn-big', '✅ Prečítal(a) som!');
+        done.addEventListener('click', () => {
+          ensureAudio();
+          sfx.correct();
+          award(1);
+          confetti(6);
+          toast(`${sample(PRAISES)} +1 💎`);
+          dots.set(idx, 'ok');
+          idx++;
+          later(next, 900);
+        });
+        row.appendChild(done);
+        panel.appendChild(row);
+        container.appendChild(panel);
       };
       next();
     };
@@ -799,9 +951,7 @@ const gameMalovanka = {
 
       const progress = el('p', '', '');
       const updateProgress = () => {
-        progress.innerHTML = remaining > 0
-          ? `Ešte <b>${remaining}</b> políčok 🖌️`
-          : '';
+        progress.innerHTML = remaining > 0 ? `Ešte <b>${remaining}</b> políčok 🖌️` : '';
       };
       updateProgress();
       panel.appendChild(progress);
@@ -882,10 +1032,6 @@ const gameMalovanka = {
       });
 
       const row = el('div', 'stack');
-      const clear = el('button', 'btn', '🧹 Zmaž všetko');
-      clear.addEventListener('click', () => {
-        grid.querySelectorAll('.cell').forEach(c => { c.style.background = '#fff'; });
-      });
       const doneBtn = el('button', 'btn btn-primary btn-big', '✨ Hotovo!');
       doneBtn.addEventListener('click', () => {
         ensureAudio();
@@ -893,6 +1039,10 @@ const gameMalovanka = {
         confetti(16);
         award(2);
         toast('Krásne dielo! +2 💎', 2400);
+      });
+      const clear = el('button', 'btn', '🧹 Zmaž všetko');
+      clear.addEventListener('click', () => {
+        grid.querySelectorAll('.cell').forEach(c => { c.style.background = '#fff'; });
       });
       const backBtn = el('button', 'btn', '🖼️ Iný obrázok');
       backBtn.addEventListener('click', pick);
@@ -906,81 +1056,126 @@ const gameMalovanka = {
   },
 };
 
-// ---------- 6) DOMČEK ----------
-const gameDomcek = {
-  id: 'domcek',
-  name: 'Môj domček',
+// ---------- 6) CHALÚPKA (obchod) ----------
+const gameChalupka = {
+  id: 'chalupka',
+  name: 'Chalúpka',
   emoji: '🏠',
-  desc: 'Stavaj za diamanty',
+  desc: 'Stavaj a vylepšuj',
   render(container) {
-    container.innerHTML = '';
-    const diamonds = getDiamonds();
-    const unlocked = Math.min(Math.floor(diamonds / HOUSE_STEP_COST), HOUSE_STEPS.length);
-    const seen = lsGet('houseSeen', 0);
+    const render = () => {
+      container.innerHTML = '';
+      const tierIndex = lsGet('homeTier', 0);
+      const decos = lsGet('decos', []);
+      const info = levelInfo();
+      const diamonds = getDiamonds();
 
-    container.appendChild(el('p', 'subtitle',
-      'Za každých 5 💎 sa postaví nová kocka tvojho svetíka!'));
-
-    // scéna
-    const wrap = el('div', 'scene-wrap');
-    const scene = el('div', 'scene-grid');
-    scene.style.gridTemplateColumns = `repeat(${HOUSE_SCENE.cols}, 1fr)`;
-
-    const cellColor = {}; // "r,c" -> { color, isNew }
-    HOUSE_STEPS.forEach((step, i) => {
-      if (i >= unlocked) return;
-      step.cells.forEach(([r, c]) => {
-        cellColor[`${r},${c}`] = { color: step.color, isNew: i >= seen };
-      });
-    });
-
-    for (let r = 0; r < HOUSE_SCENE.rows; r++) {
-      for (let c = 0; c < HOUSE_SCENE.cols; c++) {
-        const cell = el('div', 'cell');
-        const info = cellColor[`${r},${c}`];
-        if (info) {
-          cell.style.background = info.color;
-          if (info.isNew) cell.classList.add('new');
-        }
-        scene.appendChild(cell);
-      }
-    }
-    wrap.appendChild(scene);
-    container.appendChild(wrap);
-
-    // nové kocky – oslava
-    if (unlocked > seen) {
-      const names = HOUSE_STEPS.slice(seen, unlocked).map(s => s.name).join(', ');
-      later(() => {
-        sfx.place();
-        confetti(10);
-        toast(`🧱 Postavené: ${names}!`, 2600);
-      }, 400);
-      lsSet('houseSeen', unlocked);
-    }
-
-    const panel = el('div', 'game-panel');
-    panel.style.marginTop = '14px';
-
-    if (unlocked >= HOUSE_STEPS.length) {
-      panel.appendChild(el('div', 'big-emoji', '🎉'));
-      panel.appendChild(el('p', '', '<b>Svetík je hotový!</b> Si úžasná staviteľka! Diamanty zbieraj ďalej – kto vie, čo pribudne nabudúce…'));
-    } else {
-      const nextStep = HOUSE_STEPS[unlocked];
-      const progress = diamonds - unlocked * HOUSE_STEP_COST;
-      const missing = HOUSE_STEP_COST - progress;
-      panel.appendChild(el('p', '', `Ďalšia kocka: <b>${nextStep.name}</b>`));
+      // level pruh
+      const lvlBox = el('div', 'level-box');
+      lvlBox.appendChild(el('div', '', `${info.emoji} <b>Level ${info.level} – ${info.title}</b>`));
       const bar = el('div', 'progress-bar');
       const fill = el('div', 'fill');
-      fill.style.width = (progress / HOUSE_STEP_COST) * 100 + '%';
+      fill.style.width = info.pct + '%';
       bar.appendChild(fill);
-      panel.appendChild(bar);
-      panel.appendChild(el('p', '', `Ešte <b>${missing} 💎</b> – diamanty získaš v hrách! 🎮`));
-      const goPlay = el('button', 'btn btn-primary btn-big', '🎮 Poď hrať!');
+      lvlBox.appendChild(bar);
+      lvlBox.appendChild(el('div', 'muted',
+        info.next ? `Do ďalšieho levelu: ${info.toNext} 💎` : 'Najvyšší level! 👑'));
+      container.appendChild(lvlBox);
+
+      // scéna
+      const scene = el('div', 'diorama');
+      const home = el('div', 'diorama-home', HOME_TIERS[tierIndex].emoji);
+      scene.appendChild(home);
+      DECORATIONS.forEach(d => {
+        if (!decos.includes(d.id)) return;
+        const s = el('span', 'deco', d.emoji);
+        s.style.left = d.pos.left;
+        s.style.bottom = d.pos.bottom;
+        scene.appendChild(s);
+      });
+      container.appendChild(scene);
+
+      container.appendChild(el('p', 'subtitle',
+        `Máš <b>${diamonds} 💎</b> – kupuj vylepšenia! 🛒`));
+
+      // obchod – domovy
+      container.appendChild(el('h3', 'shop-title', '🏗️ Tvoj domov'));
+      const homeShop = el('div', 'shop-list');
+      HOME_TIERS.forEach((t, i) => {
+        const row = el('div', 'shop-item');
+        row.appendChild(el('span', 'shop-emoji', t.emoji));
+        const info2 = el('div', 'shop-info');
+        info2.appendChild(el('div', 'shop-name', t.name));
+        info2.appendChild(el('div', 'shop-cost', i === 0 ? 'základ' : `${t.cost} 💎`));
+        row.appendChild(info2);
+
+        let btn;
+        if (i <= tierIndex) {
+          btn = el('span', 'shop-owned', i === tierIndex ? '✅ tu bývaš' : '✔️ máš');
+        } else if (i === tierIndex + 1) {
+          btn = el('button', 'btn btn-green', 'Postaviť');
+          btn.addEventListener('click', () => {
+            if (spend(t.cost)) {
+              lsSet('homeTier', i);
+              sfx.win(); confetti(16);
+              toast(`Nový domov: ${t.name}! 🎉`, 2400);
+              speak(t.name, 1);
+              render();
+            } else {
+              sfx.wrong();
+              toast(`Ešte ti chýba ${t.cost - diamonds} 💎`);
+            }
+          });
+        } else {
+          btn = el('span', 'shop-locked', '🔒');
+        }
+        row.appendChild(btn);
+        homeShop.appendChild(row);
+      });
+      container.appendChild(homeShop);
+
+      // obchod – ozdoby
+      container.appendChild(el('h3', 'shop-title', '🌳 Ozdoby do dvora'));
+      const decoShop = el('div', 'shop-list');
+      DECORATIONS.forEach(d => {
+        const owned = decos.includes(d.id);
+        const row = el('div', 'shop-item');
+        row.appendChild(el('span', 'shop-emoji', d.emoji));
+        const info2 = el('div', 'shop-info');
+        info2.appendChild(el('div', 'shop-name', d.name));
+        info2.appendChild(el('div', 'shop-cost', `${d.cost} 💎`));
+        row.appendChild(info2);
+
+        if (owned) {
+          row.appendChild(el('span', 'shop-owned', '✔️ máš'));
+        } else {
+          const btn = el('button', 'btn btn-green', 'Kúpiť');
+          btn.addEventListener('click', () => {
+            if (spend(d.cost)) {
+              const arr = lsGet('decos', []);
+              arr.push(d.id);
+              lsSet('decos', arr);
+              sfx.place(); confetti(10);
+              toast(`Kúpené: ${d.name}! 🎉`, 2000);
+              speak(d.name, 1);
+              render();
+            } else {
+              sfx.wrong();
+              toast(`Ešte ti chýba ${d.cost - getDiamonds()} 💎`);
+            }
+          });
+          row.appendChild(btn);
+        }
+        decoShop.appendChild(row);
+      });
+      container.appendChild(decoShop);
+
+      const goPlay = el('button', 'btn btn-primary btn-big', '🎮 Poď hrať a zbierať 💎');
       goPlay.addEventListener('click', () => { location.hash = ''; });
-      panel.appendChild(goPlay);
-    }
-    container.appendChild(panel);
+      container.appendChild(goPlay);
+    };
+
+    render();
   },
 };
 
@@ -990,5 +1185,5 @@ export const GAMES = [
   gameMatika,
   gameCitanie,
   gameMalovanka,
-  gameDomcek,
+  gameChalupka,
 ];

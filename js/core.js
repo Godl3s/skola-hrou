@@ -1,4 +1,5 @@
 // ===== Jadro: stav, diamanty, pomocné funkcie =====
+import { LEVELS } from './data.js';
 
 const LS_PREFIX = 'skolahrou.';
 
@@ -13,26 +14,74 @@ export function lsSet(key, value) {
   try { localStorage.setItem(LS_PREFIX + key, JSON.stringify(value)); } catch {}
 }
 
-// --- diamanty ---
+// --- diamanty + levely ---
+// `diamonds` = minateľné diamanty (obchod), `earned` = celkovo nazbierané (level).
 export function getDiamonds() { return lsGet('diamonds', 0); }
+export function getEarned() { return lsGet('earned', getDiamonds()); }
+
+export function levelInfo() {
+  const earned = getEarned();
+  let level = 1, cur = LEVELS[0];
+  for (let i = 0; i < LEVELS.length; i++) {
+    if (earned >= LEVELS[i].need) { level = i + 1; cur = LEVELS[i]; }
+  }
+  const next = LEVELS[level] || null;
+  const base = cur.need;
+  const into = earned - base;
+  const span = next ? next.need - base : 1;
+  return {
+    level, title: cur.title, emoji: cur.emoji, earned, next,
+    into, span, pct: next ? Math.min(100, Math.round((into / span) * 100)) : 100,
+    toNext: next ? next.need - earned : 0,
+  };
+}
 
 export function award(n) {
-  const total = getDiamonds() + n;
-  lsSet('diamonds', total);
+  const before = levelInfo().level;
+  lsSet('diamonds', getDiamonds() + n);
+  lsSet('earned', getEarned() + n);
   updateBadge(true);
-  return total;
+  const info = levelInfo();
+  if (info.level > before) {
+    window.dispatchEvent(new CustomEvent('levelup', { detail: info }));
+  }
+  return getDiamonds();
+}
+
+// minutie diamantov (obchod); vráti true ak bolo dosť
+export function spend(n) {
+  const d = getDiamonds();
+  if (d < n) return false;
+  lsSet('diamonds', d - n);
+  updateBadge(true);
+  return true;
 }
 
 export function updateBadge(pulse = false) {
   const span = document.getElementById('diamond-count');
-  if (!span) return;
-  span.textContent = getDiamonds();
-  if (pulse) {
+  if (span) span.textContent = getDiamonds();
+
+  const info = levelInfo();
+  const lvNum = document.getElementById('level-num');
+  const lvEmoji = document.getElementById('level-emoji');
+  if (lvNum) lvNum.textContent = info.level;
+  if (lvEmoji) lvEmoji.textContent = info.emoji;
+  const lvBadge = document.getElementById('level-badge');
+  if (lvBadge) lvBadge.title = `Level ${info.level} – ${info.title}`;
+
+  if (pulse && span) {
     const badge = document.getElementById('diamond-badge');
     badge.classList.remove('pulse');
     void badge.offsetWidth; // restart animácie
     badge.classList.add('pulse');
   }
+}
+
+// --- písané písmo (globálny prepínač) ---
+export function getCursive() { return lsGet('cursive', false); }
+export function setCursive(on) { lsSet('cursive', !!on); applyCursive(); }
+export function applyCursive() {
+  document.body.classList.toggle('cursive', getCursive());
 }
 
 // --- DOM pomôcky ---

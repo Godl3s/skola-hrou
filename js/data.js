@@ -299,6 +299,61 @@ export const HOUSE_STEPS = [
   { name: 'Motýlik', color: '#f09030', cells: [[3,1]] },
 ];
 
+// ===== Levely (postup podľa nazbieraných diamantov) =====
+export const LEVELS = [
+  { need: 0,   title: 'Nováčik',   emoji: '🐣' },
+  { need: 12,  title: 'Kopáč',     emoji: '⛏️' },
+  { need: 28,  title: 'Staviteľ',  emoji: '🧱' },
+  { need: 50,  title: 'Baník',     emoji: '💎' },
+  { need: 80,  title: 'Dobrodruh', emoji: '🧭' },
+  { need: 120, title: 'Rytier',    emoji: '🛡️' },
+  { need: 170, title: 'Majster',   emoji: '🏅' },
+  { need: 230, title: 'Šampión',   emoji: '🏆' },
+  { need: 300, title: 'Hrdina',    emoji: '🦸' },
+  { need: 400, title: 'Legenda',   emoji: '👑' },
+];
+
+// ===== Chalúpka – obchod (míňanie diamantov) =====
+// Domovy sa postupne odomykajú (vyšší = drahší). Kupuje sa raz.
+export const HOME_TIERS = [
+  { id: 'tent',   emoji: '⛺', name: 'Stan',              cost: 0 },
+  { id: 'wood',   emoji: '🛖', name: 'Drevená chalúpka',  cost: 15 },
+  { id: 'house',  emoji: '🏠', name: 'Murovaný dom',      cost: 40 },
+  { id: 'castle', emoji: '🏰', name: 'Veľký hrad',        cost: 90 },
+];
+
+// Ozdoby do dvora – každá sa kúpi raz a objaví sa v scéne.
+export const DECORATIONS = [
+  { id: 'flower', emoji: '🌷', name: 'Kvietky',   cost: 5,  pos: { left: '8%',  bottom: '6%'  } },
+  { id: 'tree',   emoji: '🌳', name: 'Strom',     cost: 8,  pos: { left: '78%', bottom: '8%'  } },
+  { id: 'cat',    emoji: '🐱', name: 'Mačka',     cost: 10, pos: { left: '30%', bottom: '5%'  } },
+  { id: 'dog',    emoji: '🐶', name: 'Psík',      cost: 10, pos: { left: '55%', bottom: '5%'  } },
+  { id: 'torch',  emoji: '🔥', name: 'Fakľa',     cost: 8,  pos: { left: '20%', bottom: '30%' } },
+  { id: 'chick',  emoji: '🐔', name: 'Sliepka',   cost: 9,  pos: { left: '66%', bottom: '6%'  } },
+  { id: 'sun',    emoji: '🌞', name: 'Slniečko',  cost: 7,  pos: { left: '6%',  bottom: '68%' } },
+  { id: 'rainbow',emoji: '🌈', name: 'Dúha',      cost: 14, pos: { left: '60%', bottom: '60%' } },
+  { id: 'pool',   emoji: '⛲', name: 'Fontána',   cost: 16, pos: { left: '42%', bottom: '5%'  } },
+  { id: 'chest',  emoji: '🧰', name: 'Truhlica',  cost: 12, pos: { left: '86%', bottom: '30%' } },
+  { id: 'flag',   emoji: '🚩', name: 'Zástava',   cost: 11, pos: { left: '48%', bottom: '58%' } },
+  { id: 'snow',   emoji: '⛄', name: 'Snehuliak', cost: 13, pos: { left: '14%', bottom: '6%'  } },
+];
+
+// ===== Vety na čítanie (ťažšie, aj pre písané písmo) =====
+export const SENTENCES = [
+  { s: 'Mama má psa.', e: '🐶' },
+  { s: 'Ocko číta knihu.', e: '📖' },
+  { s: 'Sova sedí na strome.', e: '🦉' },
+  { s: 'Máme malé auto.', e: '🚗' },
+  { s: 'Mačka pije mlieko.', e: '🐱' },
+  { s: 'Slnko svieti na lúku.', e: '☀️' },
+  { s: 'Deti sa hrajú vonku.', e: '🧒' },
+  { s: 'Ryba pláva vo vode.', e: '🐟' },
+  { s: 'Na oblohe je dúha.', e: '🌈' },
+  { s: 'Zajko skáče po tráve.', e: '🐰' },
+  { s: 'Včela letí ku kvetu.', e: '🐝' },
+  { s: 'Máme doma malú myš.', e: '🐭' },
+];
+
 // Pochvaly
 export const PRAISES = [
   'Výborne!', 'Super!', 'Si šikovná!', 'Paráda!', 'Skvelé!',

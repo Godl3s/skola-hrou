@@ -85,17 +85,24 @@ body::after {
 }
 .icon-btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 rgba(0,0,0,.22); }
 
-#diamond-badge {
+.chip {
   background: #fff;
   border: 3px solid var(--ink);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 6px 12px;
+  padding: 6px 10px;
   font-weight: 900;
   font-size: 1.05rem;
-  color: #0e7c8a;
   flex: none;
+  font-family: var(--font-body);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 3px;
 }
+#diamond-badge { color: #0e7c8a; }
+#level-badge { color: #7a4de0; }
+#level-badge:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 rgba(0,0,0,.22); }
 #diamond-badge.pulse { animation: pulse .45s ease; }
 @keyframes pulse {
   0% { transform: scale(1); }
@@ -188,6 +195,9 @@ body::after {
 
 .btn.correct { background: var(--ok); color: #fff; animation: pop .4s ease; }
 .btn.incorrect { background: var(--bad); color: #fff; animation: shake .4s ease; }
+.btn.hint { outline: 4px solid var(--accent); outline-offset: 2px; animation: hintPulse .7s ease infinite; }
+@keyframes hintPulse { 50% { transform: scale(1.07); } }
+.btn-toggle { font-size: 1rem; min-height: 44px; padding: 8px 14px; background: #ede7ff; }
 @keyframes pop { 50% { transform: scale(1.12); } }
 @keyframes shake {
   20% { transform: translateX(-6px); }
@@ -426,6 +436,138 @@ body::after {
 .parents h3 { margin: 0 0 6px; font-size: 1rem; }
 .parents ul { margin: 6px 0 0; padding-left: 18px; }
 .parents li { margin-bottom: 4px; }
+
+/* ===== level pruh ===== */
+.level-box {
+  background: var(--card);
+  border: 3px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  text-align: center;
+  font-size: 1rem;
+}
+.muted { color: #666; font-size: .82rem; font-weight: 700; margin-top: 4px; }
+
+/* ===== nastavenia / prepínač písma ===== */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 16px 0 6px;
+  font-weight: 800;
+  color: #235a2b;
+  flex-wrap: wrap;
+}
+
+/* ===== písané písmo ===== */
+.cursive .read-word,
+.cursive .sentence {
+  font-family: "Caveat", cursive;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.cursive .word-display.read-word { font-size: 2.8rem; }
+
+.sentence {
+  font-family: var(--font-head);
+  font-size: 1.7rem;
+  font-weight: 700;
+  margin: 10px 0 6px;
+  line-height: 1.3;
+}
+.cursive .sentence { font-size: 2.4rem; }
+
+/* ===== maskot na výsledku ===== */
+.mascot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  margin: 8px 0 12px;
+}
+.mascot-face { font-size: 3rem; animation: bob 1.2s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(-8px) rotate(-6deg); } }
+.mascot-bubble {
+  background: #fff;
+  border: 3px solid var(--ink);
+  border-radius: 14px;
+  padding: 8px 12px;
+  font-weight: 800;
+  position: relative;
+  max-width: 60%;
+}
+.mascot-bubble::before {
+  content: "";
+  position: absolute;
+  left: -12px; top: 50%;
+  transform: translateY(-50%);
+  border: 7px solid transparent;
+  border-right-color: var(--ink);
+}
+
+/* ===== chalúpka: dioráma ===== */
+.diorama {
+  position: relative;
+  height: 220px;
+  border: 3px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  background: linear-gradient(180deg, #aee3f8 0%, #d8f1ff 55%, #bfe6a8 55%, #bfe6a8 100%);
+  margin-bottom: 12px;
+}
+.diorama::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 26px;
+  background: repeating-linear-gradient(90deg, var(--grass) 0 20px, var(--grass-dark) 20px 40px);
+  border-top: 3px solid #2f6b38;
+}
+.diorama-home {
+  position: absolute;
+  left: 50%; bottom: 16%;
+  transform: translateX(-50%);
+  font-size: 5rem;
+  z-index: 2;
+  animation: dropIn .5s ease;
+}
+.deco {
+  position: absolute;
+  font-size: 2.2rem;
+  z-index: 3;
+  animation: dropIn .5s ease;
+}
+
+/* ===== obchod ===== */
+.shop-title {
+  margin: 16px 0 8px;
+  font-family: var(--font-head);
+  font-size: 1.15rem;
+  color: #235a2b;
+}
+.shop-list { display: flex; flex-direction: column; gap: 8px; }
+.shop-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card);
+  border: 3px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: 2px 2px 0 rgba(0,0,0,.18);
+  padding: 8px 10px;
+}
+.shop-emoji { font-size: 2rem; flex: none; width: 40px; text-align: center; }
+.shop-info { flex: 1; min-width: 0; }
+.shop-name { font-weight: 900; }
+.shop-cost { font-size: .82rem; color: #0e7c8a; font-weight: 800; }
+.shop-item .btn { min-height: 44px; padding: 8px 14px; font-size: 1rem; flex: none; }
+.shop-owned { font-weight: 900; color: var(--grass-dark); flex: none; font-size: .9rem; }
+.shop-locked { font-size: 1.3rem; flex: none; opacity: .6; }
 
 @media (min-width: 480px) {
   .menu-grid { grid-template-columns: 1fr 1fr 1fr; }

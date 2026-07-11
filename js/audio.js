@@ -46,6 +46,24 @@ export function speak(text, rate = 0.85) {
   });
 }
 
+// --- čísla po slovensky (aby ich hlas nezmršil) ---
+const SK_NUM = [
+  'nula', 'jeden', 'dva', 'tri', 'štyri', 'päť', 'šesť', 'sedem', 'osem',
+  'deväť', 'desať', 'jedenásť', 'dvanásť', 'trinásť', 'štrnásť', 'pätnásť',
+  'šestnásť', 'sedemnásť', 'osemnásť', 'devätnásť', 'dvadsať',
+];
+export function numberToSlovak(n) {
+  if (n >= 0 && n < SK_NUM.length) return SK_NUM[n];
+  return String(n);
+}
+export function speakNumber(n) { return speak(numberToSlovak(n), 0.9); }
+
+// Prečíta matematický príklad po slovensky. `hidden` skryje výsledok („je?").
+export function speakMath(a, b, op) {
+  const opWord = op === '+' ? 'plus' : 'mínus';
+  return speak(`Koľko je ${numberToSlovak(a)} ${opWord} ${numberToSlovak(b)}?`, 0.85);
+}
+
 // --- zvukové efekty ---
 let ctx = null;
 export function ensureAudio() {
