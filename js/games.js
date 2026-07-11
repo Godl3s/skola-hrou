@@ -10,8 +10,8 @@ import {
 } from './audio.js';
 import {
   SOUND_PAIRS, READING_WORDS, READING_WORDS_L2, BUILD_WORDS, PIXEL_TEMPLATES, FREE_COLORS,
-  PRAISES, ENCOURAGE, WORLD, WORLD_BLOCKS, SENTENCES, SENTENCES_L2,
-  STAMPS, SPRITE_COLORS, DIPHTHONGS, DIPHTHONG_OPTIONS, COUNT_EMOJI, SPELL_WORDS,
+  PRAISES, ENCOURAGE, SENTENCES, SENTENCES_L2, HOME_TIERS, COLLECTIBLES,
+  DIPHTHONGS, DIPHTHONG_OPTIONS, COUNT_EMOJI, SPELL_WORDS,
 } from './data.js';
 import { recordResult, recordMistake } from './stats.js';
 import { hasSpeechRecognition, listenOnce, matchesWord, matchesSentence } from './speech.js';
@@ -64,7 +64,7 @@ function resultScreen(container, score, total, onAgain) {
   const row = el('div', 'stack');
   const again = el('button', 'btn btn-primary btn-big', '🔁 Ešte raz');
   again.addEventListener('click', onAgain);
-  const shop = el('button', 'btn btn-green btn-big', '🧱 Môj svet');
+  const shop = el('button', 'btn btn-green btn-big', '🏡 Moja dedinka');
   shop.addEventListener('click', () => { location.hash = '#/svet'; });
   const home = el('button', 'btn btn-big', '🎮 Iná hra');
   home.addEventListener('click', () => { location.hash = ''; });
@@ -1533,237 +1533,128 @@ const gameMalovanka = {
 // ---------- 6) MÔJ SVET (stavanie z kociek) ----------
 const gameSvet = {
   id: 'svet',
-  name: 'Môj svet',
-  emoji: '🧱',
-  desc: 'Kupuj domy a postavičky',
+  name: 'Moja dedinka',
+  emoji: '🏡',
+  desc: 'Kupuj a vylepšuj',
   render(container) {
-    const blockById = {};
-    WORLD_BLOCKS.forEach(b => { blockById[b.id] = b; });
-    const stampById = {};
-    STAMPS.forEach(s => { stampById[s.id] = s; });
-    const N = WORLD.cols * WORLD.rows;
-    const state = { selected: 'grass', eraser: false, stamp: null };
-
-    // načítaj / vytvor svet
-    let world = lsGet('world', null);
-    const freshGround = () => {
-      const w = new Array(N).fill(null);
-      for (let c = 0; c < WORLD.cols; c++) {
-        w[(WORLD.rows - 1) * WORLD.cols + c] = 'dirt';
-        w[(WORLD.rows - 2) * WORLD.cols + c] = 'grass';
-      }
-      return w;
-    };
-    if (!Array.isArray(world) || world.length !== N) world = freshGround();
-    const save = () => lsSet('world', world);
-
-    const applyBlock = (cell, id) => {
-      cell.className = 'wcell';
-      cell.textContent = '';
-      cell.style.background = '';
-      if (!id) return;
-      if (typeof id === 'string' && id.startsWith('e:')) {
-        cell.textContent = id.slice(2);
-        cell.classList.add('has-emoji', 'placed');
-        return;
-      }
-      const b = blockById[id];
-      if (b) {
-        if (b.color) cell.style.background = b.color;
-        if (b.emoji) { cell.textContent = b.emoji; cell.classList.add('has-emoji'); }
-        cell.classList.add('placed');
-        if (id === 'glass') cell.classList.add('glass');
-        return;
-      }
-      if (SPRITE_COLORS[id]) {
-        cell.style.background = SPRITE_COLORS[id];
-        cell.classList.add('placed');
-      }
-    };
+    const CATS = [
+      { id: 'rastliny', title: '🌳 Príroda' },
+      { id: 'zvierata', title: '🐾 Zvieratká' },
+      { id: 'postavicky', title: '🎮 Postavičky' },
+      { id: 'zabava', title: '🎡 Zábava' },
+    ];
 
     const draw = () => {
       container.innerHTML = '';
-      const unlocked = new Set(lsGet('blocks', ['grass', 'dirt']));
-      const unlockedStamps = new Set(lsGet('stamps', []));
+      const tierIndex = Math.min(lsGet('homeTier', 0), HOME_TIERS.length - 1);
+      const owned = lsGet('collect', []);
+      const ownedSet = new Set(owned);
       const info = levelInfo();
+      const diamonds = getDiamonds();
 
       // level pruh
       const lvlBox = el('div', 'level-box');
       lvlBox.appendChild(el('div', '', `${info.emoji} <b>Level ${info.level} – ${info.title}</b>`));
-      const bar = el('div', 'progress-bar');
-      const fill = el('div', 'fill');
-      fill.style.width = info.pct + '%';
-      bar.appendChild(fill);
-      lvlBox.appendChild(bar);
+      lvlBox.appendChild(el('div', 'muted',
+        `Máš <b>${diamonds} 💎</b> · v dedinke máš <b>${owned.length}</b> z ${COLLECTIBLES.length} vecí`));
       container.appendChild(lvlBox);
 
       container.appendChild(el('p', 'subtitle',
-        'Kúp si domy a postavičky za 💎 a ťuknutím ich polož – alebo stavaj z kociek! 🏗️'));
+        'Vylepšuj domček a dopĺňaj si dedinku za 💎 🏡'));
 
-      // mriežka sveta
-      const grid = el('div', 'world-grid');
-      grid.style.gridTemplateColumns = `repeat(${WORLD.cols}, 1fr)`;
-      const cellEls = [];
-      for (let i = 0; i < N; i++) {
-        const cell = el('div', 'wcell');
-        cell.dataset.i = i;
-        applyBlock(cell, world[i]);
-        grid.appendChild(cell);
-        cellEls.push(cell);
-      }
-      container.appendChild(grid);
+      // scéna – dedinka (dom + všetko nazbierané)
+      const scene = el('div', 'scene');
+      const village = el('div', 'village');
+      village.appendChild(el('span', 'v-home', HOME_TIERS[tierIndex].emoji));
+      owned.forEach(id => {
+        const it = COLLECTIBLES.find(c => c.id === id);
+        if (it) village.appendChild(el('span', 'v-item', it.emoji));
+      });
+      scene.appendChild(village);
+      container.appendChild(scene);
 
-      const placeStamp = (i) => {
-        const stamp = state.stamp;
-        if (!stamp) return;
-        const cols = WORLD.cols, rows = WORLD.rows;
-        const H = stamp.rows.length;
-        const W = Math.max(...stamp.rows.map(r => r.length));
-        const r = Math.floor(i / cols), c = i % cols;
-        const ar = Math.min(Math.max(r, 0), rows - H);
-        const ac = Math.min(Math.max(c, 0), cols - W);
-        for (let dr = 0; dr < H; dr++) {
-          const rowArr = stamp.rows[dr];
-          for (let dc = 0; dc < rowArr.length; dc++) {
-            const id = rowArr[dc];
-            if (!id || id === '.') continue;
-            const wi = (ar + dr) * cols + (ac + dc);
-            world[wi] = id;
-            applyBlock(cellEls[wi], id);
-          }
-        }
-        save();
-        sfx.place();
-        confetti(6);
-      };
+      // — domov: vylepšovanie —
+      container.appendChild(el('h3', 'shop-title', '🏗️ Tvoj domov'));
+      const homeShop = el('div', 'shop-list');
+      const cur = HOME_TIERS[tierIndex];
+      const curRow = el('div', 'shop-item');
+      curRow.appendChild(el('span', 'shop-emoji', cur.emoji));
+      const ci = el('div', 'shop-info');
+      ci.appendChild(el('div', 'shop-name', cur.name));
+      ci.appendChild(el('div', 'shop-cost', 'tu teraz bývaš'));
+      curRow.appendChild(ci);
+      curRow.appendChild(el('span', 'shop-owned', '✅'));
+      homeShop.appendChild(curRow);
 
-      enablePainting(grid, (cell, isTap) => {
-        const i = +cell.dataset.i;
-        if (state.stamp) {
-          if (isTap) placeStamp(i);
-          return;
-        }
-        if (state.eraser) {
-          world[i] = null;
-        } else {
-          if (!state.selected || !unlocked.has(state.selected)) return;
-          world[i] = state.selected;
-        }
-        applyBlock(cell, world[i]);
-        save();
-      }, '.wcell');
-
-      // — výber / zvýraznenie —
-      const swFor = {};        // bloky
-      const stampSwFor = {};   // stampy
-      let eraserBtn;
-      const clearSel = () => {
-        Object.values(swFor).forEach(s => s.classList.remove('sel'));
-        Object.values(stampSwFor).forEach(s => s.classList.remove('sel'));
-        if (eraserBtn) eraserBtn.classList.remove('sel');
-      };
-      const selectBlock = (id) => {
-        state.selected = id; state.eraser = false; state.stamp = null;
-        clearSel(); if (swFor[id]) swFor[id].classList.add('sel');
-      };
-      const selectStamp = (stamp) => {
-        state.stamp = stamp; state.eraser = false; state.selected = null;
-        clearSel(); if (stampSwFor[stamp.id]) stampSwFor[stamp.id].classList.add('sel');
-        toast(`Ťukni do sveta, kam položiť ${stamp.name} 👆`, 2200);
-      };
-
-      // — paleta kociek (voľné staviteľstvo) —
-      container.appendChild(el('h3', 'shop-title', '⛏️ Kocky (voľné staviteľstvo)'));
-      const paletteWrap = el('div', 'palette-wrap');
-      const palette = el('div', 'block-palette');
-      WORLD_BLOCKS.forEach(b => {
-        const sw = el('button', 'block-sw');
-        const chip = el('div', 'chip-color', b.emoji || '');
-        if (b.color) chip.style.background = b.color;
-        sw.appendChild(chip);
-        const isUnlocked = unlocked.has(b.id);
-        sw.appendChild(el('div', 'chip-label', isUnlocked ? b.name : `🔒 ${b.cost}💎`));
-        if (!isUnlocked) sw.classList.add('locked');
-        swFor[b.id] = sw;
-        sw.addEventListener('click', () => {
+      const nextTier = HOME_TIERS[tierIndex + 1];
+      if (nextTier) {
+        const row = el('div', 'shop-item');
+        row.appendChild(el('span', 'shop-emoji', nextTier.emoji));
+        const inf = el('div', 'shop-info');
+        inf.appendChild(el('div', 'shop-name', `Vylepšiť na: ${nextTier.name}`));
+        inf.appendChild(el('div', 'shop-cost', `${nextTier.cost} 💎`));
+        row.appendChild(inf);
+        const btn = el('button', 'btn btn-green', 'Vylepšiť');
+        btn.addEventListener('click', () => {
           ensureAudio();
-          if (unlocked.has(b.id)) { sfx.click(); selectBlock(b.id); }
-          else if (spend(b.cost)) {
-            const arr = lsGet('blocks', ['grass', 'dirt']); arr.push(b.id); lsSet('blocks', arr);
-            sfx.win(); confetti(10); toast(`Odomknuté: ${b.name}! 🎉`, 1800); speak(b.name, 1);
-            state.selected = b.id; state.eraser = false; state.stamp = null;
+          if (spend(nextTier.cost)) {
+            lsSet('homeTier', tierIndex + 1);
+            sfx.win(); confetti(16);
+            toast(`Nový domov: ${nextTier.name}! 🎉`, 2400);
+            speak(nextTier.name, 1);
             draw();
-          } else { sfx.wrong(); toast(`Ešte ti chýba ${b.cost - getDiamonds()} 💎`); }
+          } else { sfx.wrong(); toast(`Ešte ti chýba ${nextTier.cost - diamonds} 💎`); }
         });
-        palette.appendChild(sw);
-      });
-      eraserBtn = el('button', 'block-sw eraser', '');
-      eraserBtn.appendChild(el('div', 'chip-color', '🧽'));
-      eraserBtn.appendChild(el('div', 'chip-label', 'Guma'));
-      eraserBtn.addEventListener('click', () => {
-        ensureAudio(); sfx.click();
-        state.eraser = true; state.stamp = null; state.selected = null;
-        clearSel(); eraserBtn.classList.add('sel');
-      });
-      palette.appendChild(eraserBtn);
-      paletteWrap.appendChild(palette);
-      container.appendChild(paletteWrap);
+        row.appendChild(btn);
+        homeShop.appendChild(row);
+      } else {
+        const done = el('div', 'shop-item');
+        done.appendChild(el('span', 'shop-emoji', '👑'));
+        const inf = el('div', 'shop-info');
+        inf.appendChild(el('div', 'shop-name', 'Máš najlepší domov!'));
+        done.appendChild(inf);
+        homeShop.appendChild(done);
+      }
+      container.appendChild(homeShop);
 
-      // — obchod: stavby a postavičky (kúp a polož) —
-      const buildStampSection = (title, items) => {
-        container.appendChild(el('h3', 'shop-title', title));
-        const wrap = el('div', 'palette-wrap');
-        const pal = el('div', 'block-palette');
-        items.forEach(stamp => {
-          const sw = el('button', 'block-sw');
-          sw.appendChild(el('div', 'chip-color', stamp.emoji));
-          const isU = unlockedStamps.has(stamp.id);
-          sw.appendChild(el('div', 'chip-label', isU ? stamp.name : `🔒 ${stamp.cost}💎`));
-          if (!isU) sw.classList.add('locked');
-          stampSwFor[stamp.id] = sw;
-          sw.addEventListener('click', () => {
-            ensureAudio();
-            if (unlockedStamps.has(stamp.id)) { sfx.click(); selectStamp(stamp); }
-            else if (spend(stamp.cost)) {
-              const arr = lsGet('stamps', []); arr.push(stamp.id); lsSet('stamps', arr);
-              sfx.win(); confetti(12);
-              toast(`Kúpené: ${stamp.name}! Ťukni, kam ho položiť 👆`, 2600);
-              speak(stamp.name, 1);
-              state.stamp = stamp; state.eraser = false; state.selected = null;
-              draw();
-            } else { sfx.wrong(); toast(`Ešte ti chýba ${stamp.cost - getDiamonds()} 💎`); }
-          });
-          pal.appendChild(sw);
+      // — zbierka: dokupovanie donekonečna —
+      CATS.forEach(cat => {
+        const items = COLLECTIBLES.filter(c => c.cat === cat.id);
+        if (!items.length) return;
+        const haveN = items.filter(c => ownedSet.has(c.id)).length;
+        container.appendChild(el('h3', 'shop-title', `${cat.title} <span class="muted">(${haveN}/${items.length})</span>`));
+        const list = el('div', 'shop-list');
+        items.forEach(it => {
+          const row = el('div', 'shop-item');
+          row.appendChild(el('span', 'shop-emoji', it.emoji));
+          const inf = el('div', 'shop-info');
+          inf.appendChild(el('div', 'shop-name', it.name));
+          inf.appendChild(el('div', 'shop-cost', `${it.cost} 💎`));
+          row.appendChild(inf);
+          if (ownedSet.has(it.id)) {
+            row.appendChild(el('span', 'shop-owned', '✔️ máš'));
+          } else {
+            const btn = el('button', 'btn btn-green', 'Kúpiť');
+            btn.addEventListener('click', () => {
+              ensureAudio();
+              if (spend(it.cost)) {
+                const arr = lsGet('collect', []); arr.push(it.id); lsSet('collect', arr);
+                sfx.place(); confetti(10);
+                toast(`Pribudlo: ${it.name}! 🎉`, 1800);
+                speak(it.name, 1);
+                draw();
+              } else { sfx.wrong(); toast(`Ešte ti chýba ${it.cost - getDiamonds()} 💎`); }
+            });
+            row.appendChild(btn);
+          }
+          list.appendChild(row);
         });
-        wrap.appendChild(pal);
-        container.appendChild(wrap);
-      };
-
-      container.appendChild(el('h3', 'shop-title', '🛒 Obchod – kúp a polož'));
-      buildStampSection('🏠 Hotové stavby', STAMPS.filter(s => s.kind === 'build'));
-      buildStampSection('🎮 Postavičky', STAMPS.filter(s => s.kind === 'mob'));
-      buildStampSection('🌈 Doplnky', STAMPS.filter(s => s.kind === 'deco'));
-
-      // obnov zvýraznenie podľa stavu
-      if (state.stamp && stampSwFor[state.stamp.id]) stampSwFor[state.stamp.id].classList.add('sel');
-      else if (state.eraser && eraserBtn) eraserBtn.classList.add('sel');
-      else if (state.selected && swFor[state.selected]) swFor[state.selected].classList.add('sel');
-
-      // spodné tlačidlá
-      const row = el('div', 'row');
-      const clearBtn = el('button', 'btn', '🗑️ Zbúrať všetko');
-      clearBtn.addEventListener('click', () => {
-        ensureAudio(); sfx.click();
-        if (!confirm('Naozaj zbúrať celý svet? Kúpené veci ti ostanú v obchode.')) return;
-        world = freshGround();
-        save();
-        cellEls.forEach((cell, i) => applyBlock(cell, world[i]));
-        toast('Svet vyčistený – stavaj odznova! 🧹');
+        container.appendChild(list);
       });
-      const playBtn = el('button', 'btn btn-primary', '🎮 Zbierať 💎');
-      playBtn.addEventListener('click', () => { location.hash = ''; });
-      row.append(clearBtn, playBtn);
-      container.appendChild(row);
+
+      const goPlay = el('button', 'btn btn-primary btn-big', '🎮 Poď hrať a zbierať 💎');
+      goPlay.addEventListener('click', () => { location.hash = ''; });
+      container.appendChild(goPlay);
     };
 
     draw();

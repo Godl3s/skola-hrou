@@ -531,6 +531,30 @@ body::after {
   border-right-color: var(--ink);
 }
 
+/* ===== dedinka: scéna ===== */
+.scene {
+  border: 3px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  background: linear-gradient(180deg, #aee3f8 0%, #d8f1ff 55%, #bfe6a8 55%, #a9d98f 100%);
+  min-height: 170px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.village {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px 8px;
+  padding: 12px 8px 14px;
+}
+.v-home { font-size: 3.6rem; line-height: 1; }
+.v-item { font-size: 1.95rem; line-height: 1.1; animation: dropIn .4s ease; }
+
 /* ===== chalúpka: dioráma ===== */
 .diorama {
   position: relative;

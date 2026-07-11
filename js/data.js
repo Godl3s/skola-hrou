@@ -323,13 +323,78 @@ export const LEVELS = [
   { need: 400, title: 'Legenda',   emoji: '👑' },
 ];
 
-// ===== Chalúpka – obchod (míňanie diamantov) =====
-// Domovy sa postupne odomykajú (vyšší = drahší). Kupuje sa raz.
+// ===== Dedinka – domov sa postupne vylepšuje (míňanie diamantov) =====
 export const HOME_TIERS = [
-  { id: 'tent',   emoji: '⛺', name: 'Stan',              cost: 0 },
-  { id: 'wood',   emoji: '🛖', name: 'Drevená chalúpka',  cost: 15 },
-  { id: 'house',  emoji: '🏠', name: 'Murovaný dom',      cost: 40 },
-  { id: 'castle', emoji: '🏰', name: 'Veľký hrad',        cost: 90 },
+  { id: 'tent',   emoji: '⛺', name: 'Stan',             cost: 0 },
+  { id: 'wood',   emoji: '🛖', name: 'Drevená chalúpka', cost: 15 },
+  { id: 'house',  emoji: '🏠', name: 'Murovaný dom',     cost: 40 },
+  { id: 'villa',  emoji: '🏡', name: 'Vila so záhradou', cost: 70 },
+  { id: 'castle', emoji: '🏰', name: 'Hrad',             cost: 110 },
+  { id: 'tower',  emoji: '🗼', name: 'Veľká veža',       cost: 170 },
+];
+
+// ===== Zbierka do dedinky – dokupovanie donekonečna =====
+export const COLLECTIBLES = [
+  // 🌳 Príroda
+  { id: 'c_flower', emoji: '🌷', name: 'Tulipán',    cost: 4,  cat: 'rastliny' },
+  { id: 'c_tree',   emoji: '🌳', name: 'Strom',      cost: 6,  cat: 'rastliny' },
+  { id: 'c_xmas',   emoji: '🎄', name: 'Stromček',   cost: 6,  cat: 'rastliny' },
+  { id: 'c_cactus', emoji: '🌵', name: 'Kaktus',     cost: 5,  cat: 'rastliny' },
+  { id: 'c_mush',   emoji: '🍄', name: 'Hríb',       cost: 4,  cat: 'rastliny' },
+  { id: 'c_sunflw', emoji: '🌻', name: 'Slnečnica',  cost: 5,  cat: 'rastliny' },
+  { id: 'c_rain',   emoji: '🌈', name: 'Dúha',       cost: 8,  cat: 'rastliny' },
+  { id: 'c_cloud',  emoji: '☁️', name: 'Obláčik',    cost: 3,  cat: 'rastliny' },
+  { id: 'c_fount',  emoji: '⛲', name: 'Fontána',    cost: 10, cat: 'rastliny' },
+  { id: 'c_lake',   emoji: '🏞️', name: 'Jazierko',   cost: 9,  cat: 'rastliny' },
+  { id: 'c_fire',   emoji: '🔥', name: 'Táborák',    cost: 6,  cat: 'rastliny' },
+  { id: 'c_snowm',  emoji: '⛄', name: 'Snehuliak',  cost: 7,  cat: 'rastliny' },
+  { id: 'c_palm',   emoji: '🌴', name: 'Palma',      cost: 7,  cat: 'rastliny' },
+  { id: 'c_plant',  emoji: '🪴', name: 'Kvetináč',   cost: 4,  cat: 'rastliny' },
+
+  // 🐾 Zvieratká
+  { id: 'c_pig',    emoji: '🐷', name: 'Prasiatko',  cost: 5,  cat: 'zvierata' },
+  { id: 'c_cow',    emoji: '🐮', name: 'Kravička',   cost: 6,  cat: 'zvierata' },
+  { id: 'c_sheep',  emoji: '🐑', name: 'Ovečka',     cost: 5,  cat: 'zvierata' },
+  { id: 'c_chick',  emoji: '🐔', name: 'Sliepka',    cost: 5,  cat: 'zvierata' },
+  { id: 'c_bunny',  emoji: '🐰', name: 'Zajko',      cost: 5,  cat: 'zvierata' },
+  { id: 'c_cat',    emoji: '🐱', name: 'Mačka',      cost: 6,  cat: 'zvierata' },
+  { id: 'c_dog',    emoji: '🐶', name: 'Psík',       cost: 6,  cat: 'zvierata' },
+  { id: 'c_horse',  emoji: '🐴', name: 'Koník',      cost: 8,  cat: 'zvierata' },
+  { id: 'c_fox',    emoji: '🦊', name: 'Líška',      cost: 8,  cat: 'zvierata' },
+  { id: 'c_owl',    emoji: '🦉', name: 'Sova',       cost: 7,  cat: 'zvierata' },
+  { id: 'c_bee',    emoji: '🐝', name: 'Včielka',    cost: 4,  cat: 'zvierata' },
+  { id: 'c_fly',    emoji: '🦋', name: 'Motýľ',      cost: 4,  cat: 'zvierata' },
+  { id: 'c_turtle', emoji: '🐢', name: 'Korytnačka', cost: 7,  cat: 'zvierata' },
+  { id: 'c_squir',  emoji: '🐿️', name: 'Veverička',  cost: 7,  cat: 'zvierata' },
+  { id: 'c_wolf',   emoji: '🐺', name: 'Vlk',        cost: 8,  cat: 'zvierata' },
+  { id: 'c_frog',   emoji: '🐸', name: 'Žabka',      cost: 4,  cat: 'zvierata' },
+
+  // 🎮 Postavičky
+  { id: 'c_zombie', emoji: '🧟', name: 'Zombík',     cost: 8,  cat: 'postavicky' },
+  { id: 'c_skel',   emoji: '💀', name: 'Kostlivec',  cost: 8,  cat: 'postavicky' },
+  { id: 'c_dragon', emoji: '🐉', name: 'Drak',       cost: 20, cat: 'postavicky' },
+  { id: 'c_villag', emoji: '🧑‍🌾', name: 'Dedinčan',  cost: 7,  cat: 'postavicky' },
+  { id: 'c_wizard', emoji: '🧙', name: 'Čarodej',    cost: 12, cat: 'postavicky' },
+  { id: 'c_robot',  emoji: '🤖', name: 'Robot',      cost: 12, cat: 'postavicky' },
+  { id: 'c_alien',  emoji: '👾', name: 'Príšerka',   cost: 10, cat: 'postavicky' },
+  { id: 'c_steve',  emoji: '🧑', name: 'Staviteľ',   cost: 9,  cat: 'postavicky' },
+  { id: 'c_hero',   emoji: '🦸', name: 'Hrdina',     cost: 14, cat: 'postavicky' },
+  { id: 'c_ghost',  emoji: '👻', name: 'Duch',       cost: 8,  cat: 'postavicky' },
+  { id: 'c_unicorn',emoji: '🦄', name: 'Jednorožec', cost: 16, cat: 'postavicky' },
+
+  // 🎡 Zábava
+  { id: 'c_flag',   emoji: '🚩', name: 'Zástava',    cost: 5,  cat: 'zabava' },
+  { id: 'c_balloon',emoji: '🎈', name: 'Balón',      cost: 4,  cat: 'zabava' },
+  { id: 'c_ball',   emoji: '⚽', name: 'Lopta',      cost: 4,  cat: 'zabava' },
+  { id: 'c_car',    emoji: '🚗', name: 'Autíčko',    cost: 7,  cat: 'zabava' },
+  { id: 'c_tract',  emoji: '🚜', name: 'Traktor',    cost: 9,  cat: 'zabava' },
+  { id: 'c_boat',   emoji: '⛵', name: 'Loďka',      cost: 8,  cat: 'zabava' },
+  { id: 'c_rocket', emoji: '🚀', name: 'Raketa',     cost: 12, cat: 'zabava' },
+  { id: 'c_carous', emoji: '🎠', name: 'Kolotoč',    cost: 12, cat: 'zabava' },
+  { id: 'c_ferris', emoji: '🎡', name: 'Ruské koleso',cost: 15, cat: 'zabava' },
+  { id: 'c_slide',  emoji: '🛝', name: 'Šmykľavka',  cost: 8,  cat: 'zabava' },
+  { id: 'c_circus', emoji: '🎪', name: 'Cirkus',     cost: 12, cat: 'zabava' },
+  { id: 'c_gift',   emoji: '🎁', name: 'Darček',     cost: 6,  cat: 'zabava' },
 ];
 
 // Ozdoby do dvora – každá sa kúpi raz a objaví sa v scéne.
