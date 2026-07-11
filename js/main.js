@@ -2,6 +2,7 @@
 import { el, updateBadge, newEpoch, levelInfo, applyCursive, getCursive, setCursive, confetti, toast } from './core.js';
 import { GAMES } from './games.js';
 import { canSpeak, hasSlovakVoice, ensureAudio, sfx, speak } from './audio.js';
+import { renderReport } from './report.js';
 
 const app = document.getElementById('app');
 const title = document.getElementById('page-title');
@@ -93,9 +94,13 @@ function renderMenu() {
       <li><b>Čítanie</b> – slová, prvé písmená, skladanie slov aj čítanie viet. Prepínač <b>Tlačené/Písané</b> precvičí čítanie písaného písma.</li>
       <li>Pri chybe hra <b>nejde ďalej</b> – dieťa skúša znova, po druhom pokuse sa správna odpoveď rozbliká ako pomôcka.</li>
       <li>Za odpovede zbiera 💎 a stúpa v <b>leveloch</b>; v <b>Mojom svete</b> si za diamanty odomyká kocky (piesok, voda, kameň, tehla, zlato…) a stavia vlastný svet – od domčeka po hrad.</li>
+      <li><b>Report</b> nižšie ukáže úspešnosť po zručnostiach a presne <b>v čom sa najviac mýli</b>.</li>
       <li>Zvuk funguje po prvom ťuknutí na obrazovku (pravidlo prehliadača).</li>
     </ul>
   `);
+  const reportBtn = el('button', 'btn btn-blue btn-big', '📊 Report pre rodiča');
+  reportBtn.addEventListener('click', () => { ensureAudio(); sfx.click(); location.hash = '#/report'; });
+  parents.appendChild(reportBtn);
   app.appendChild(parents);
 }
 
@@ -103,8 +108,14 @@ function render() {
   newEpoch(); // zruší čakajúce časovače z predchádzajúcej obrazovky
   updateBadge(); // obnoví diamanty a level v hlavičke
   const hash = location.hash.replace(/^#\/?/, '');
-  const game = GAMES.find(g => g.id === hash);
   window.scrollTo(0, 0);
+  if (hash === 'report') {
+    title.textContent = '📊 Report';
+    app.innerHTML = '';
+    renderReport(app);
+    return;
+  }
+  const game = GAMES.find(g => g.id === hash);
   if (!game) { renderMenu(); return; }
   title.textContent = `${game.emoji} ${game.name}`;
   app.innerHTML = '';

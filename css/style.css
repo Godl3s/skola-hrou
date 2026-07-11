@@ -640,7 +640,130 @@ body::after {
 .block-sw.sel { outline: 4px solid var(--accent); outline-offset: 1px; }
 .block-sw.eraser .chip-color { background: #fff; }
 
+/* ===== písané slovo (auto-striedanie v Uškách) ===== */
+.cursive-word {
+  font-family: "Caveat", cursive !important;
+  text-transform: none !important;
+  letter-spacing: 0;
+  font-weight: 700;
+}
+.script-note {
+  font-size: .78rem;
+  font-weight: 800;
+  color: #7a4de0;
+  margin: 2px 0 6px;
+}
+
+/* ===== mikrofón ===== */
+.mic-status {
+  min-height: 1.6em;
+  font-weight: 800;
+  margin: 10px 0;
+  font-size: 1.05rem;
+}
+.mic-status i { color: #7a4de0; font-style: italic; }
+
+/* ===== report pre rodiča ===== */
+.report-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.report-card {
+  background: var(--card);
+  border: 3px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: 2px 2px 0 rgba(0,0,0,.18);
+  padding: 10px;
+  text-align: center;
+}
+.report-big { font-size: 1.4rem; font-weight: 900; }
+.report-small { font-size: .74rem; color: #666; font-weight: 700; margin-top: 2px; }
+
+.report-list { display: flex; flex-direction: column; gap: 8px; }
+.report-skill {
+  background: var(--card);
+  border: 3px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: 2px 2px 0 rgba(0,0,0,.18);
+  padding: 8px 10px;
+}
+.report-skill-name { font-weight: 800; font-size: .92rem; margin-bottom: 6px; }
+.report-bar {
+  height: 20px;
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  background: #f0f0f0;
+  overflow: hidden;
+}
+.report-bar-fill {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 6px;
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 900;
+  min-width: 24px;
+  transition: width .5s ease;
+}
+.acc-good { background: var(--ok); }
+.acc-mid  { background: var(--accent); }
+.acc-low  { background: var(--bad); }
+
+.mistake-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff4f4;
+  border: 2px solid #e0a0a0;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.mistake-label { font-weight: 900; flex: 1; }
+.mistake-skill { font-size: .72rem; color: #888; font-weight: 700; }
+.mistake-count { font-weight: 900; color: var(--bad); }
+
+.recent-row {
+  background: var(--card);
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+.recent-main { font-size: .92rem; }
+.recent-meta { font-size: .7rem; color: #888; font-weight: 700; margin-top: 2px; }
+.bad-txt { color: var(--bad); font-weight: 900; }
+.ok-txt { color: var(--grass-dark); font-weight: 900; }
+
+.week-chart {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  height: 120px;
+  background: var(--card);
+  border: 3px solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: 2px 2px 0 rgba(0,0,0,.18);
+  padding: 8px 6px;
+}
+.week-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; }
+.week-bar-wrap { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+.week-bar {
+  width: 70%;
+  margin: 0 auto;
+  background: var(--diamond);
+  border: 2px solid var(--ink);
+  border-radius: 4px 4px 0 0;
+  min-height: 3px;
+}
+.week-bar.empty { background: #e6e6e6; }
+.week-num { font-size: .72rem; font-weight: 900; margin-top: 2px; }
+.week-name { font-size: .68rem; color: #888; font-weight: 700; }
+
 @media (min-width: 480px) {
   .menu-grid { grid-template-columns: 1fr 1fr 1fr; }
   #page-title { font-size: 1.6rem; }
+  .report-cards { grid-template-columns: 1fr 1fr 1fr; }
 }

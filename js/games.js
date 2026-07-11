@@ -12,6 +12,8 @@ import {
   SOUND_PAIRS, READING_WORDS, BUILD_WORDS, PIXEL_TEMPLATES, FREE_COLORS,
   PRAISES, ENCOURAGE, WORLD, WORLD_BLOCKS, SENTENCES,
 } from './data.js';
+import { recordResult, recordMistake } from './stats.js';
+import { hasSpeechRecognition, listenOnce, matchesWord } from './speech.js';
 
 // ---------- spoločné pomôcky ----------
 function praiseNow() {
@@ -103,14 +105,20 @@ function cursiveToggle(onChange) {
 function makeState() { return { firstTry: true, locked: false, tries: 0 }; }
 
 const RETRY_MSGS = ['Skús to ešte raz! 💪', 'Ešte raz to skús! 🙂', 'Nevadí, skús znova! 💪', 'Skúsime znova? 😊'];
-function onWrongDefault(st, btn, reveal) {
+function onWrongDefault(st, btn, reveal, mistake) {
   st.firstTry = false;
   st.tries++;
   btn.classList.add('incorrect');
   btn.disabled = true;
   sfx.wrong();
   toast(st.tries >= 2 ? 'Pozri, správna odpoveď svieti! 👉' : sample(RETRY_MSGS));
+  if (st.tries === 1 && mistake) recordMistake(mistake);
   if (st.tries >= 2 && reveal) reveal();
+}
+
+// zapíše výsledok otázky do štatistík
+function trackResult(st, meta) {
+  recordResult({ ...meta, firstTry: st.firstTry });
 }
 
 // ---------- 1) LOGOPÉDIA ----------
@@ -118,19 +126,27 @@ const gameLogopedia = {
   id: 'logopedia',
   name: 'Ušká',
   emoji: '👂',
-  desc: 'Š–Č, S–Š a iné hlásky',
+  desc: 'Š–Č, S–Š, mikrofón',
   render(container) {
-    const pick = () => levelScreen(
-      container,
-      'Vypočuj slovo a uhádni, ktorú hlásku počuješ! 👂',
-      SOUND_PAIRS.map(p => ({ emoji: '🔊', label: `${p.a} alebo ${p.b}`, pair: p })),
-      lvl => start(lvl.pair)
-    );
+    const pick = () => {
+      const levels = SOUND_PAIRS.map(p => ({ emoji: '🔊', label: `${p.a} alebo ${p.b}`, pair: p }));
+      if (hasSpeechRecognition()) {
+        levels.push({ emoji: '🎤', label: 'Povedz slovo (mikrofón)', say: true });
+      }
+      levelScreen(
+        container,
+        'Vypočuj slovo a uhádni hlásku – alebo ho sama povedz! 👂',
+        levels,
+        lvl => (lvl.say ? startSay() : start(lvl.pair))
+      );
+    };
 
     const start = (pair) => {
       const TOTAL = 10;
       const words = shuffle(pair.words).slice(0, TOTAL);
       const dots = progressDots(TOTAL);
+      const skill = `logopedia:${pair.id}`;
+      const skillName = `${pair.a}/${pair.b}`;
       let idx = 0, score = 0;
       const ttsOk = canSpeak();
 
@@ -139,6 +155,8 @@ const gameLogopedia = {
         dots.set(idx, 'current');
         const item = words[idx];
         const st = makeState();
+        const useCursive = idx % 2 === 1; // strieda tlačené / písané samo
+        const shown = useCursive ? item.w : item.w.toUpperCase();
 
         container.innerHTML = '';
         const banner = ttsHintBanner();
@@ -147,8 +165,10 @@ const gameLogopedia = {
 
         const panel = el('div', 'game-panel');
         panel.appendChild(el('div', 'big-emoji', item.e));
-        const wordDisplay = el('div', 'word-display read-word', ttsOk ? '• • •' : item.w.toUpperCase());
+        const wordDisplay = el('div', `word-display read-word${useCursive ? ' cursive-word' : ''}`,
+          ttsOk ? '• • •' : shown);
         panel.appendChild(wordDisplay);
+        panel.appendChild(el('div', 'script-note', useCursive ? '✍️ písané písmo' : '🅰️ tlačené písmo'));
 
         if (ttsOk) {
           const replay = el('button', 'btn btn-blue btn-big', '🔊 Vypočuj slovo');
@@ -171,15 +191,17 @@ const gameLogopedia = {
               st.locked = true;
               b.classList.add('correct');
               b.classList.remove('hint');
-              wordDisplay.innerHTML = highlightWord(item.w.toUpperCase(), item.t);
+              wordDisplay.innerHTML = highlightWord(shown, item.t);
               sfx.correct();
               if (st.firstTry) { score++; award(1); confetti(6); toast(`${praiseNow()} +1 💎`); }
               else toast(praiseNow());
+              trackResult(st, { game: 'logopedia', gameName: 'Ušká', skill, skillName });
               dots.set(idx, st.firstTry ? 'ok' : 'bad');
               idx++;
               later(next, 1600);
             } else {
-              onWrongDefault(st, b, reveal);
+              onWrongDefault(st, b, reveal,
+                { skill, skillName, label: item.w, chose: letter, correct: item.t });
             }
           });
           row.appendChild(b);
@@ -188,6 +210,105 @@ const gameLogopedia = {
         container.appendChild(panel);
 
         if (ttsOk) later(() => speak(item.w), 350);
+      };
+      next();
+    };
+
+    // — mikrofón: dieťa povie slovo, appka vyhodnotí —
+    const startSay = () => {
+      const TOTAL = 6;
+      const words = shuffle(READING_WORDS).slice(0, TOTAL);
+      const dots = progressDots(TOTAL);
+      const skill = 'logopedia:say';
+      const skillName = 'Výslovnosť 🎤';
+      let idx = 0, score = 0;
+
+      const next = () => {
+        if (idx >= TOTAL) { resultScreen(container, score, TOTAL, startSay); return; }
+        dots.set(idx, 'current');
+        const item = words[idx];
+        const st = makeState();
+        let busy = false;
+
+        container.innerHTML = '';
+        container.appendChild(el('div', 'hint-banner',
+          '🎤 Ťukni na mikrofón a povedz slovo nahlas. Vyhodnotenie je len približné.'));
+        container.appendChild(dots.node);
+
+        const panel = el('div', 'game-panel');
+        panel.appendChild(el('div', 'big-emoji', item.e));
+        panel.appendChild(el('div', 'word-display read-word', item.w.toUpperCase()));
+
+        if (canSpeak()) {
+          const hear = el('button', 'btn btn-blue', '🔊 Vypočuj slovo');
+          hear.addEventListener('click', () => { ensureAudio(); speak(item.w); });
+          panel.appendChild(hear);
+        }
+
+        const status = el('div', 'mic-status', 'Povedz: <b>' + item.w + '</b>');
+        panel.appendChild(status);
+
+        const micBtn = el('button', 'btn btn-green btn-big', '🎤 Povedz slovo');
+        const skipBtn = el('button', 'btn', '➡️ Preskočiť');
+
+        const finishOk = () => {
+          st.locked = true;
+          sfx.correct();
+          if (st.firstTry) { score++; award(1); confetti(8); toast(`${praiseNow()} +1 💎`); }
+          else toast(praiseNow());
+          trackResult(st, { game: 'logopedia', gameName: 'Ušká', skill, skillName });
+          status.innerHTML = '✅ Super!';
+          dots.set(idx, st.firstTry ? 'ok' : 'bad');
+          idx++;
+          later(next, 1400);
+        };
+
+        micBtn.addEventListener('click', async () => {
+          if (busy || st.locked) return;
+          busy = true;
+          ensureAudio();
+          micBtn.disabled = true;
+          status.innerHTML = '👂 Počúvam… povedz <b>' + item.w + '</b>';
+          const res = await listenOnce('sk-SK');
+          busy = false;
+          micBtn.disabled = false;
+          if (!res.ok) {
+            if (res.error === 'not-allowed' || res.error === 'service-not-allowed') {
+              status.innerHTML = '🔇 Povoľte mikrofón v prehliadači a skúste znova.';
+            } else {
+              status.innerHTML = '🤔 Nepočula som ťa, skús ešte raz.';
+            }
+            return;
+          }
+          const m = matchesWord(item.w, res.alternatives);
+          if (m.match) {
+            finishOk();
+          } else {
+            if (st.firstTry) {
+              recordMistake({ skill, skillName, label: item.w, chose: m.heard || '?', correct: item.w });
+            }
+            st.firstTry = false;
+            sfx.wrong();
+            status.innerHTML = `🙂 Počula som „<i>${m.heard || '…'}</i>". Skús to povedať zreteľnejšie.`;
+          }
+        });
+
+        skipBtn.addEventListener('click', () => {
+          if (st.locked) return;
+          st.locked = true;
+          st.firstTry = false;
+          trackResult(st, { game: 'logopedia', gameName: 'Ušká', skill, skillName });
+          dots.set(idx, 'bad');
+          idx++;
+          later(next, 400);
+        });
+
+        const row = el('div', 'stack');
+        row.append(micBtn, skipBtn);
+        panel.appendChild(row);
+        container.appendChild(panel);
+
+        if (canSpeak()) later(() => speak(item.w), 350);
       };
       next();
     };
@@ -253,11 +374,13 @@ const gameZvuky = {
               sfx.correct();
               if (st.firstTry) { score++; award(1); confetti(6); toast(`${praiseNow()} +1 💎`); }
               else toast(praiseNow());
+              trackResult(st, { game: 'zvuky', gameName: 'Zvuky', skill: 'zvuky', skillName: 'Počúvanie zvukov' });
               dots.set(idx, st.firstTry ? 'ok' : 'bad');
               idx++;
               later(next, 1600);
             } else {
-              onWrongDefault(st, b, reveal);
+              onWrongDefault(st, b, reveal,
+                { skill: 'zvuky', skillName: 'Počúvanie zvukov', label: `${kind} × ${n}`, chose: i, correct: n });
             }
           });
           numBtns.push(b);
@@ -289,6 +412,10 @@ const gameZvuky = {
 };
 
 // ---------- 3) MATEMATIKA ----------
+const MATIKA_NAMES = {
+  add10: 'Sčítanie do 10', sub10: 'Odčítanie do 10', mix20: 'Plus/mínus do 20',
+  missing: 'Doplň číslo', compare: 'Porovnávanie',
+};
 function makeOptions(ans, max = 20) {
   const set = new Set([ans]);
   const candidates = shuffle([ans - 1, ans + 1, ans - 2, ans + 2, ans + 3, ans - 3, ans + 4, ans - 4]);
@@ -388,11 +515,15 @@ const gameMatika = {
               sfx.correct();
               if (st.firstTry) { score++; award(1); confetti(6); toast(`${praiseNow()} +1 💎`); }
               else toast(praiseNow());
+              trackResult(st, { game: 'matika', gameName: 'Počítanie', skill: `matika:${lvl.type}`, skillName: MATIKA_NAMES[lvl.type] });
               dots.set(idx, st.firstTry ? 'ok' : 'bad');
               idx++;
               later(next, 1500);
             } else {
-              onWrongDefault(st, b, reveal);
+              onWrongDefault(st, b, reveal, {
+                skill: `matika:${lvl.type}`, skillName: MATIKA_NAMES[lvl.type],
+                label: `${p.a} ${p.op} ${p.b}`, chose: opt, correct: p.ans,
+              });
             }
           });
           grid.appendChild(b);
@@ -454,11 +585,15 @@ const gameMatika = {
               sfx.correct();
               if (st.firstTry) { score++; award(1); confetti(6); toast(`${praiseNow()} +1 💎`); }
               else toast(praiseNow());
+              trackResult(st, { game: 'matika', gameName: 'Počítanie', skill: 'matika:missing', skillName: MATIKA_NAMES.missing });
               dots.set(idx, st.firstTry ? 'ok' : 'bad');
               idx++;
               later(next, 1500);
             } else {
-              onWrongDefault(st, b, reveal);
+              onWrongDefault(st, b, reveal, {
+                skill: 'matika:missing', skillName: MATIKA_NAMES.missing,
+                label: p.text, chose: opt, correct: p.ans,
+              });
             }
           });
           grid.appendChild(b);
@@ -512,11 +647,15 @@ const gameMatika = {
               sfx.correct();
               if (st.firstTry) { score++; award(1); confetti(6); toast(`${praiseNow()} +1 💎`); }
               else toast(praiseNow());
+              trackResult(st, { game: 'matika', gameName: 'Počítanie', skill: 'matika:compare', skillName: MATIKA_NAMES.compare });
               dots.set(idx, st.firstTry ? 'ok' : 'bad');
               idx++;
               later(next, 1500);
             } else {
-              onWrongDefault(st, b2, reveal);
+              onWrongDefault(st, b2, reveal, {
+                skill: 'matika:compare', skillName: MATIKA_NAMES.compare,
+                label: `${a} ? ${b}`, chose: o.sym, correct,
+              });
             }
           });
           grid.appendChild(b2);
@@ -596,11 +735,15 @@ const gameCitanie = {
               speak(item.w);
               if (st.firstTry) { score++; award(1); confetti(6); toast(`${sample(PRAISES)} +1 💎`); }
               else toast(sample(PRAISES));
+              trackResult(st, { game: 'citanie', gameName: 'Čítanie', skill: 'citanie:match', skillName: 'Obrázok a slovo' });
               dots.set(idx, st.firstTry ? 'ok' : 'bad');
               idx++;
               later(next, 1600);
             } else {
-              onWrongDefault(st, b, reveal);
+              onWrongDefault(st, b, reveal, {
+                skill: 'citanie:match', skillName: 'Obrázok a slovo',
+                label: item.w, chose: o.w, correct: item.w,
+              });
             }
           });
           stack.appendChild(b);
@@ -659,11 +802,15 @@ const gameCitanie = {
               sfx.correct();
               if (st.firstTry) { score++; award(1); confetti(6); toast(`${praiseNow()} +1 💎`); }
               else toast(praiseNow());
+              trackResult(st, { game: 'citanie', gameName: 'Čítanie', skill: 'citanie:first', skillName: 'Prvé písmenko' });
               dots.set(idx, st.firstTry ? 'ok' : 'bad');
               idx++;
               later(next, 1700);
             } else {
-              onWrongDefault(st, b, reveal);
+              onWrongDefault(st, b, reveal, {
+                skill: 'citanie:first', skillName: 'Prvé písmenko',
+                label: `${item.w} (${correct}?)`, chose: letter, correct,
+              });
             }
           });
           grid.appendChild(b);
@@ -755,12 +902,14 @@ const gameCitanie = {
             confetti(8);
             speak(item.w);
             toast(firstTry ? `${sample(PRAISES)} +1 💎` : sample(PRAISES));
+            recordResult({ game: 'citanie', gameName: 'Čítanie', skill: 'citanie:build', skillName: 'Skladanie slov', firstTry });
             dots.set(idx, firstTry ? 'ok' : 'bad');
             idx++;
             later(next, 1700);
           } else {
             fails++;
             sfx.wrong();
+            if (fails === 1) recordMistake({ skill: 'citanie:build', skillName: 'Skladanie slov', label: item.w, chose: built || '—', correct: target });
             slotEls.forEach(s => s.classList.add('wiggle'));
             toast('Skoro! Skús písmenká inak. 🙂');
             if (fails >= 2) hint.innerHTML = `Pomôcka: slovo je <b class="read-word">${target}</b>`;
@@ -813,6 +962,7 @@ const gameCitanie = {
           award(1);
           confetti(6);
           toast(`${sample(PRAISES)} +1 💎`);
+          recordResult({ game: 'citanie', gameName: 'Čítanie', skill: 'citanie:sentence', skillName: 'Čítanie viet', firstTry: true });
           dots.set(idx, 'ok');
           idx++;
           later(next, 900);
