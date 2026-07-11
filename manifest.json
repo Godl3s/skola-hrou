@@ -1,0 +1,18 @@
+{
+  "name": "Škola hrou",
+  "short_name": "Škola hrou",
+  "description": "Zábavné učenie pre prvákov – logopédia, počítanie, čítanie a maľovanky.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#8fd3f4",
+  "theme_color": "#5cb85c",
+  "lang": "sk",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- kocka trávy -->
+  <rect x="4" y="4" width="56" height="56" rx="8" fill="#8d6e4b"/>
+  <rect x="4" y="4" width="56" height="22" rx="8" fill="#58b24c"/>
+  <rect x="4" y="18" width="56" height="8" fill="#58b24c"/>
+  <!-- pixelové fliačiky -->
+  <rect x="10" y="8" width="8" height="8" fill="#6fce5e"/>
+  <rect x="30" y="12" width="8" height="8" fill="#3e8948"/>
+  <rect x="46" y="7" width="8" height="8" fill="#6fce5e"/>
+  <rect x="12" y="34" width="8" height="8" fill="#7a5c3d"/>
+  <rect x="42" y="42" width="8" height="8" fill="#a0805c"/>
+  <!-- ceruzka -->
+  <g transform="rotate(45 32 40)">
+    <rect x="26" y="26" width="12" height="26" rx="2" fill="#f5c542"/>
+    <polygon points="26,52 38,52 32,62" fill="#f0e0c0"/>
+    <polygon points="29.5,58 34.5,58 32,62" fill="#2b2b2b"/>
+    <rect x="26" y="26" width="12" height="6" rx="2" fill="#e05656"/>
+  </g>
+</svg>
