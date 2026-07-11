@@ -11,6 +11,7 @@ import {
 import {
   SOUND_PAIRS, READING_WORDS, BUILD_WORDS, PIXEL_TEMPLATES, FREE_COLORS,
   PRAISES, ENCOURAGE, WORLD, WORLD_BLOCKS, SENTENCES,
+  STAMPS, SPRITE_COLORS, DIPHTHONGS, DIPHTHONG_OPTIONS, COUNT_EMOJI, SPELL_WORDS,
 } from './data.js';
 import { recordResult, recordMistake } from './stats.js';
 import { hasSpeechRecognition, listenOnce, matchesWord } from './speech.js';
@@ -414,7 +415,7 @@ const gameZvuky = {
 // ---------- 3) MATEMATIKA ----------
 const MATIKA_NAMES = {
   add10: 'Sčítanie do 10', sub10: 'Odčítanie do 10', mix20: 'Plus/mínus do 20',
-  missing: 'Doplň číslo', compare: 'Porovnávanie',
+  missing: 'Doplň číslo', compare: 'Porovnávanie', count: 'Počítanie predmetov',
 };
 function makeOptions(ans, max = 20) {
   const set = new Set([ans]);
@@ -438,6 +439,7 @@ const gameMatika = {
       container,
       'Vyber si, čo budeme počítať! 🧮',
       [
+        { emoji: '🍎', label: 'Koľko ich je?', type: 'count' },
         { emoji: '➕', label: 'Sčítanie do 10', type: 'add10' },
         { emoji: '➖', label: 'Odčítanie do 10', type: 'sub10' },
         { emoji: '🚀', label: 'Plus a mínus do 20', type: 'mix20' },
@@ -445,7 +447,8 @@ const gameMatika = {
         { emoji: '⚖️', label: 'Porovnaj čísla', type: 'compare' },
       ],
       lvl => (lvl.type === 'compare' ? startCompare(lvl)
-        : lvl.type === 'missing' ? startMissing(lvl) : start(lvl))
+        : lvl.type === 'missing' ? startMissing(lvl)
+        : lvl.type === 'count' ? startCount(lvl) : start(lvl))
     );
 
     const genProblem = (type) => {
@@ -606,6 +609,60 @@ const gameMatika = {
       next();
     };
 
+    const startCount = (lvl) => {
+      const TOTAL = 10;
+      const dots = progressDots(TOTAL);
+      let idx = 0, score = 0;
+
+      const next = () => {
+        if (idx >= TOTAL) { resultScreen(container, score, TOTAL, () => startCount(lvl)); return; }
+        dots.set(idx, 'current');
+        const n = randInt(1, 10);
+        const emoji = sample(COUNT_EMOJI);
+        const st = makeState();
+
+        container.innerHTML = '';
+        container.appendChild(dots.node);
+        const panel = el('div', 'game-panel');
+        panel.appendChild(el('p', '', `Koľko je tu <b>${emoji}</b>? Spočítaj ich!`));
+        panel.appendChild(el('div', 'count-items', emoji.repeat(n)));
+
+        const grid = el('div', 'numbers-grid');
+        const btnFor = {};
+        const reveal = () => { if (btnFor[n]) btnFor[n].classList.add('hint'); };
+        for (let i = 1; i <= 10; i++) {
+          const b = el('button', 'btn', String(i));
+          btnFor[i] = b;
+          b.addEventListener('click', () => {
+            if (st.locked) return;
+            ensureAudio();
+            if (i === n) {
+              st.locked = true;
+              b.classList.add('correct');
+              b.classList.remove('hint');
+              sfx.correct();
+              speakNumber(n);
+              if (st.firstTry) { score++; award(1); confetti(6); toast(`${praiseNow()} +1 💎`); }
+              else toast(praiseNow());
+              trackResult(st, { game: 'matika', gameName: 'Počítanie', skill: 'matika:count', skillName: MATIKA_NAMES.count });
+              dots.set(idx, st.firstTry ? 'ok' : 'bad');
+              idx++;
+              later(next, 1500);
+            } else {
+              onWrongDefault(st, b, reveal, {
+                skill: 'matika:count', skillName: MATIKA_NAMES.count,
+                label: `${emoji} × ${n}`, chose: i, correct: n,
+              });
+            }
+          });
+          grid.appendChild(b);
+        }
+        panel.appendChild(grid);
+        container.appendChild(panel);
+      };
+      next();
+    };
+
     const startCompare = (lvl) => {
       const TOTAL = 10;
       const dots = progressDots(TOTAL);
@@ -677,7 +734,7 @@ const gameCitanie = {
   id: 'citanie',
   name: 'Čítanie',
   emoji: '📖',
-  desc: 'Slová, písmená, vety',
+  desc: 'Slová, hláskovanie, dvojhlásky',
   render(container) {
     const pick = () => levelScreen(
       container,
@@ -686,12 +743,16 @@ const gameCitanie = {
         { emoji: '🖼️', label: 'Obrázok a slovo', mode: 'match' },
         { emoji: '🔤', label: 'Prvé písmenko', mode: 'first' },
         { emoji: '🧩', label: 'Poskladaj slovo', mode: 'build' },
+        { emoji: '🔠', label: 'Hláskovanie', mode: 'spell' },
+        { emoji: '🅰️', label: 'Dvojhlásky ia ie iu ô', mode: 'diphthong' },
         { emoji: '📜', label: 'Čítaj vetu', mode: 'sentence' },
       ],
       lvl => {
         if (lvl.mode === 'match') startMatch();
         else if (lvl.mode === 'first') startFirst();
         else if (lvl.mode === 'build') startBuild();
+        else if (lvl.mode === 'spell') startSpell();
+        else if (lvl.mode === 'diphthong') startDiphthong();
         else startSentence();
       },
       cursiveToggle()
@@ -974,6 +1035,139 @@ const gameCitanie = {
       next();
     };
 
+    // — hláskovanie (spelovanie) —
+    const startSpell = () => {
+      const TOTAL = 6;
+      const words = shuffle(SPELL_WORDS).slice(0, TOTAL);
+      const dots = progressDots(TOTAL);
+      let idx = 0;
+
+      const next = () => {
+        if (idx >= TOTAL) { resultScreen(container, TOTAL, TOTAL, startSpell); return; }
+        dots.set(idx, 'current');
+        const item = words[idx];
+        const letters = item.w.toUpperCase().split('');
+
+        container.innerHTML = '';
+        container.appendChild(dots.node);
+        const panel = el('div', 'game-panel');
+        panel.appendChild(el('div', 'big-emoji', item.e));
+
+        const slots = el('div', 'slots');
+        const tiles = letters.map(ch => {
+          const s = el('div', 'slot filled read-word', ch);
+          slots.appendChild(s);
+          return s;
+        });
+        panel.appendChild(slots);
+        panel.appendChild(el('p', '', 'Počúvaj, ako sa slovo hláskuje. 🔠'));
+
+        const hlaskuj = () => {
+          const seq = item.w.split('');
+          let k = 0;
+          const step = () => {
+            tiles.forEach(t => t.classList.remove('lit'));
+            if (k >= seq.length) { speak(item.w); return; }
+            tiles[k].classList.add('lit');
+            speak(seq[k], 0.9);
+            k++;
+            later(step, 780);
+          };
+          step();
+        };
+
+        const say = el('button', 'btn btn-blue btn-big', '🔊 Hláskuj slovo');
+        say.addEventListener('click', () => { ensureAudio(); hlaskuj(); });
+        panel.appendChild(say);
+
+        const done = el('button', 'btn btn-green btn-big', '✅ Zopakoval(a) som!');
+        done.addEventListener('click', () => {
+          ensureAudio();
+          sfx.correct();
+          award(1);
+          confetti(6);
+          speak(item.w);
+          toast(`${sample(PRAISES)} +1 💎`);
+          recordResult({ game: 'citanie', gameName: 'Čítanie', skill: 'citanie:spell', skillName: 'Hláskovanie', firstTry: true });
+          dots.set(idx, 'ok');
+          idx++;
+          later(next, 900);
+        });
+        panel.appendChild(done);
+        container.appendChild(panel);
+
+        later(hlaskuj, 400);
+      };
+      next();
+    };
+
+    // — dvojhlásky ia / ie / iu / ô —
+    const startDiphthong = () => {
+      const TOTAL = 8;
+      const words = shuffle(DIPHTHONGS).slice(0, TOTAL);
+      const dots = progressDots(TOTAL);
+      const skill = 'citanie:diphthong';
+      const skillName = 'Dvojhlásky';
+      let idx = 0, score = 0;
+
+      const next = () => {
+        if (idx >= TOTAL) { resultScreen(container, score, TOTAL, startDiphthong); return; }
+        dots.set(idx, 'current');
+        const item = words[idx];
+        const st = makeState();
+        const blank = item.w.replace(item.d, '▢').toUpperCase();
+
+        container.innerHTML = '';
+        container.appendChild(dots.node);
+        const panel = el('div', 'game-panel');
+        panel.appendChild(el('div', 'big-emoji', item.e));
+        const wordDisplay = el('div', 'word-display read-word', blank);
+        panel.appendChild(wordDisplay);
+
+        if (canSpeak()) {
+          const hear = el('button', 'btn btn-blue', '🔊 Vypočuj slovo');
+          hear.addEventListener('click', () => { ensureAudio(); speak(item.w); });
+          panel.appendChild(hear);
+        }
+        panel.appendChild(el('p', '', 'Ktorá dvojhláska patrí do slova?'));
+
+        const grid = el('div', 'answers-grid');
+        const btnFor = {};
+        const reveal = () => { if (btnFor[item.d]) btnFor[item.d].classList.add('hint'); };
+        DIPHTHONG_OPTIONS.forEach(opt => {
+          const b = el('button', 'btn', opt);
+          btnFor[opt] = b;
+          b.addEventListener('click', () => {
+            if (st.locked) return;
+            ensureAudio();
+            if (opt === item.d) {
+              st.locked = true;
+              b.classList.add('correct');
+              b.classList.remove('hint');
+              wordDisplay.innerHTML = item.w.toUpperCase().replace(item.d.toUpperCase(), `<span class="hl">${item.d.toUpperCase()}</span>`);
+              sfx.correct();
+              speak(item.w);
+              if (st.firstTry) { score++; award(1); confetti(6); toast(`${sample(PRAISES)} +1 💎`); }
+              else toast(sample(PRAISES));
+              trackResult(st, { game: 'citanie', gameName: 'Čítanie', skill, skillName });
+              dots.set(idx, st.firstTry ? 'ok' : 'bad');
+              idx++;
+              later(next, 1700);
+            } else {
+              onWrongDefault(st, b, reveal,
+                { skill, skillName, label: item.w, chose: opt, correct: item.d });
+            }
+          });
+          grid.appendChild(b);
+        });
+        panel.appendChild(grid);
+        container.appendChild(panel);
+
+        if (canSpeak()) later(() => speak(item.w), 350);
+      };
+      next();
+    };
+
     pick();
   },
 };
@@ -1211,22 +1405,26 @@ const gameSvet = {
   id: 'svet',
   name: 'Môj svet',
   emoji: '🧱',
-  desc: 'Stavaj z kociek',
+  desc: 'Kupuj domy a postavičky',
   render(container) {
     const blockById = {};
     WORLD_BLOCKS.forEach(b => { blockById[b.id] = b; });
+    const stampById = {};
+    STAMPS.forEach(s => { stampById[s.id] = s; });
     const N = WORLD.cols * WORLD.rows;
-    const state = { selected: 'grass', eraser: false };
+    const state = { selected: 'grass', eraser: false, stamp: null };
 
     // načítaj / vytvor svet
     let world = lsGet('world', null);
-    if (!Array.isArray(world) || world.length !== N) {
-      world = new Array(N).fill(null);
+    const freshGround = () => {
+      const w = new Array(N).fill(null);
       for (let c = 0; c < WORLD.cols; c++) {
-        world[(WORLD.rows - 1) * WORLD.cols + c] = 'dirt';
-        world[(WORLD.rows - 2) * WORLD.cols + c] = 'grass';
+        w[(WORLD.rows - 1) * WORLD.cols + c] = 'dirt';
+        w[(WORLD.rows - 2) * WORLD.cols + c] = 'grass';
       }
-    }
+      return w;
+    };
+    if (!Array.isArray(world) || world.length !== N) world = freshGround();
     const save = () => lsSet('world', world);
 
     const applyBlock = (cell, id) => {
@@ -1234,17 +1432,29 @@ const gameSvet = {
       cell.textContent = '';
       cell.style.background = '';
       if (!id) return;
+      if (typeof id === 'string' && id.startsWith('e:')) {
+        cell.textContent = id.slice(2);
+        cell.classList.add('has-emoji', 'placed');
+        return;
+      }
       const b = blockById[id];
-      if (!b) return;
-      if (b.color) cell.style.background = b.color;
-      if (b.emoji) { cell.textContent = b.emoji; cell.classList.add('has-emoji'); }
-      cell.classList.add('placed');
-      if (id === 'glass') cell.classList.add('glass');
+      if (b) {
+        if (b.color) cell.style.background = b.color;
+        if (b.emoji) { cell.textContent = b.emoji; cell.classList.add('has-emoji'); }
+        cell.classList.add('placed');
+        if (id === 'glass') cell.classList.add('glass');
+        return;
+      }
+      if (SPRITE_COLORS[id]) {
+        cell.style.background = SPRITE_COLORS[id];
+        cell.classList.add('placed');
+      }
     };
 
     const draw = () => {
       container.innerHTML = '';
       const unlocked = new Set(lsGet('blocks', ['grass', 'dirt']));
+      const unlockedStamps = new Set(lsGet('stamps', []));
       const info = levelInfo();
 
       // level pruh
@@ -1258,7 +1468,7 @@ const gameSvet = {
       container.appendChild(lvlBox);
 
       container.appendChild(el('p', 'subtitle',
-        'Ťukaj a ťahaj prstom a stavaj! Nové kocky si odomkni za 💎 ⛏️'));
+        'Kúp si domy a postavičky za 💎 a ťuknutím ich polož – alebo stavaj z kociek! 🏗️'));
 
       // mriežka sveta
       const grid = el('div', 'world-grid');
@@ -1273,31 +1483,69 @@ const gameSvet = {
       }
       container.appendChild(grid);
 
-      enablePainting(grid, (cell) => {
+      const placeStamp = (i) => {
+        const stamp = state.stamp;
+        if (!stamp) return;
+        const cols = WORLD.cols, rows = WORLD.rows;
+        const H = stamp.rows.length;
+        const W = Math.max(...stamp.rows.map(r => r.length));
+        const r = Math.floor(i / cols), c = i % cols;
+        const ar = Math.min(Math.max(r, 0), rows - H);
+        const ac = Math.min(Math.max(c, 0), cols - W);
+        for (let dr = 0; dr < H; dr++) {
+          const rowArr = stamp.rows[dr];
+          for (let dc = 0; dc < rowArr.length; dc++) {
+            const id = rowArr[dc];
+            if (!id || id === '.') continue;
+            const wi = (ar + dr) * cols + (ac + dc);
+            world[wi] = id;
+            applyBlock(cellEls[wi], id);
+          }
+        }
+        save();
+        sfx.place();
+        confetti(6);
+      };
+
+      enablePainting(grid, (cell, isTap) => {
         const i = +cell.dataset.i;
+        if (state.stamp) {
+          if (isTap) placeStamp(i);
+          return;
+        }
         if (state.eraser) {
           world[i] = null;
         } else {
-          if (!unlocked.has(state.selected)) return;
+          if (!state.selected || !unlocked.has(state.selected)) return;
           world[i] = state.selected;
         }
         applyBlock(cell, world[i]);
         save();
       }, '.wcell');
 
-      // paleta kociek
-      const paletteWrap = el('div', 'palette-wrap');
-      const palette = el('div', 'block-palette');
-      const swFor = {};
-
-      const selectBlock = (id) => {
-        state.selected = id;
-        state.eraser = false;
+      // — výber / zvýraznenie —
+      const swFor = {};        // bloky
+      const stampSwFor = {};   // stampy
+      let eraserBtn;
+      const clearSel = () => {
         Object.values(swFor).forEach(s => s.classList.remove('sel'));
-        eraserBtn.classList.remove('sel');
-        if (swFor[id]) swFor[id].classList.add('sel');
+        Object.values(stampSwFor).forEach(s => s.classList.remove('sel'));
+        if (eraserBtn) eraserBtn.classList.remove('sel');
+      };
+      const selectBlock = (id) => {
+        state.selected = id; state.eraser = false; state.stamp = null;
+        clearSel(); if (swFor[id]) swFor[id].classList.add('sel');
+      };
+      const selectStamp = (stamp) => {
+        state.stamp = stamp; state.eraser = false; state.selected = null;
+        clearSel(); if (stampSwFor[stamp.id]) stampSwFor[stamp.id].classList.add('sel');
+        toast(`Ťukni do sveta, kam položiť ${stamp.name} 👆`, 2200);
       };
 
+      // — paleta kociek (voľné staviteľstvo) —
+      container.appendChild(el('h3', 'shop-title', '⛏️ Kocky (voľné staviteľstvo)'));
+      const paletteWrap = el('div', 'palette-wrap');
+      const palette = el('div', 'block-palette');
       WORLD_BLOCKS.forEach(b => {
         const sw = el('button', 'block-sw');
         const chip = el('div', 'chip-color', b.emoji || '');
@@ -1307,54 +1555,77 @@ const gameSvet = {
         sw.appendChild(el('div', 'chip-label', isUnlocked ? b.name : `🔒 ${b.cost}💎`));
         if (!isUnlocked) sw.classList.add('locked');
         swFor[b.id] = sw;
-
         sw.addEventListener('click', () => {
           ensureAudio();
-          if (unlocked.has(b.id)) {
-            sfx.click();
-            selectBlock(b.id);
-          } else if (spend(b.cost)) {
-            const arr = lsGet('blocks', ['grass', 'dirt']);
-            arr.push(b.id);
-            lsSet('blocks', arr);
-            sfx.win(); confetti(10);
-            toast(`Odomknuté: ${b.name}! 🎉`, 1800);
-            speak(b.name, 1);
-            state.selected = b.id;
-            state.eraser = false;
-            draw(); // prekreslí paletu; vybraná kocka sa zvýrazní podľa state
-          } else {
-            sfx.wrong();
-            toast(`Ešte ti chýba ${b.cost - getDiamonds()} 💎`);
-          }
+          if (unlocked.has(b.id)) { sfx.click(); selectBlock(b.id); }
+          else if (spend(b.cost)) {
+            const arr = lsGet('blocks', ['grass', 'dirt']); arr.push(b.id); lsSet('blocks', arr);
+            sfx.win(); confetti(10); toast(`Odomknuté: ${b.name}! 🎉`, 1800); speak(b.name, 1);
+            state.selected = b.id; state.eraser = false; state.stamp = null;
+            draw();
+          } else { sfx.wrong(); toast(`Ešte ti chýba ${b.cost - getDiamonds()} 💎`); }
         });
         palette.appendChild(sw);
       });
-
-      const eraserBtn = el('button', 'block-sw eraser', '');
+      eraserBtn = el('button', 'block-sw eraser', '');
       eraserBtn.appendChild(el('div', 'chip-color', '🧽'));
       eraserBtn.appendChild(el('div', 'chip-label', 'Guma'));
       eraserBtn.addEventListener('click', () => {
         ensureAudio(); sfx.click();
-        state.eraser = true;
-        Object.values(swFor).forEach(s => s.classList.remove('sel'));
-        eraserBtn.classList.add('sel');
+        state.eraser = true; state.stamp = null; state.selected = null;
+        clearSel(); eraserBtn.classList.add('sel');
       });
       palette.appendChild(eraserBtn);
       paletteWrap.appendChild(palette);
       container.appendChild(paletteWrap);
-      if (swFor[state.selected]) swFor[state.selected].classList.add('sel');
+
+      // — obchod: stavby a postavičky (kúp a polož) —
+      const buildStampSection = (title, items) => {
+        container.appendChild(el('h3', 'shop-title', title));
+        const wrap = el('div', 'palette-wrap');
+        const pal = el('div', 'block-palette');
+        items.forEach(stamp => {
+          const sw = el('button', 'block-sw');
+          sw.appendChild(el('div', 'chip-color', stamp.emoji));
+          const isU = unlockedStamps.has(stamp.id);
+          sw.appendChild(el('div', 'chip-label', isU ? stamp.name : `🔒 ${stamp.cost}💎`));
+          if (!isU) sw.classList.add('locked');
+          stampSwFor[stamp.id] = sw;
+          sw.addEventListener('click', () => {
+            ensureAudio();
+            if (unlockedStamps.has(stamp.id)) { sfx.click(); selectStamp(stamp); }
+            else if (spend(stamp.cost)) {
+              const arr = lsGet('stamps', []); arr.push(stamp.id); lsSet('stamps', arr);
+              sfx.win(); confetti(12);
+              toast(`Kúpené: ${stamp.name}! Ťukni, kam ho položiť 👆`, 2600);
+              speak(stamp.name, 1);
+              state.stamp = stamp; state.eraser = false; state.selected = null;
+              draw();
+            } else { sfx.wrong(); toast(`Ešte ti chýba ${stamp.cost - getDiamonds()} 💎`); }
+          });
+          pal.appendChild(sw);
+        });
+        wrap.appendChild(pal);
+        container.appendChild(wrap);
+      };
+
+      container.appendChild(el('h3', 'shop-title', '🛒 Obchod – kúp a polož'));
+      buildStampSection('🏠 Hotové stavby', STAMPS.filter(s => s.kind === 'build'));
+      buildStampSection('🎮 Postavičky', STAMPS.filter(s => s.kind === 'mob'));
+      buildStampSection('🌈 Doplnky', STAMPS.filter(s => s.kind === 'deco'));
+
+      // obnov zvýraznenie podľa stavu
+      if (state.stamp && stampSwFor[state.stamp.id]) stampSwFor[state.stamp.id].classList.add('sel');
+      else if (state.eraser && eraserBtn) eraserBtn.classList.add('sel');
+      else if (state.selected && swFor[state.selected]) swFor[state.selected].classList.add('sel');
 
       // spodné tlačidlá
       const row = el('div', 'row');
       const clearBtn = el('button', 'btn', '🗑️ Zbúrať všetko');
       clearBtn.addEventListener('click', () => {
         ensureAudio(); sfx.click();
-        world = new Array(N).fill(null);
-        for (let c = 0; c < WORLD.cols; c++) {
-          world[(WORLD.rows - 1) * WORLD.cols + c] = 'dirt';
-          world[(WORLD.rows - 2) * WORLD.cols + c] = 'grass';
-        }
+        if (!confirm('Naozaj zbúrať celý svet? Kúpené veci ti ostanú v obchode.')) return;
+        world = freshGround();
         save();
         cellEls.forEach((cell, i) => applyBlock(cell, world[i]));
         toast('Svet vyčistený – stavaj odznova! 🧹');

@@ -291,6 +291,16 @@ body::after {
   font-weight: 700;
 }
 .slot.filled { border-style: solid; border-color: var(--ink); background: #fff8e1; }
+.slot.lit { background: var(--accent); color: #fff; border-color: var(--ink); transform: scale(1.12); transition: transform .12s ease, background .12s ease; }
+
+/* počítanie predmetov */
+.count-items {
+  font-size: 2rem;
+  line-height: 1.6;
+  letter-spacing: 6px;
+  margin: 12px 0;
+  word-break: break-word;
+}
 .letter-tiles { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
 .letter-tiles .btn { font-family: var(--font-head); font-size: 1.8rem; min-width: 58px; min-height: 62px; padding: 6px; }
 .letter-tiles .btn.used { visibility: hidden; }

@@ -364,6 +364,164 @@ export const WORLD_BLOCKS = [
   { id: 'tnt',     name: 'TNT',     color: '#c0392b', emoji: '🧨', cost: 8 },
 ];
 
+// ===== Postavičky – vlastné pixelové farby (mimo bežnej palety) =====
+export const SPRITE_COLORS = {
+  cg: '#6db24a', cd: '#20301a',                 // creeper
+  hair: '#4a3418', sk: '#d0996a', shirt: '#2f9fb5', legs: '#3b4b8f', // steve
+  ec: '#161622', ep: '#c26bd6',                 // enderman
+};
+
+// ===== Obchod so stavbami a postavičkami (stampy do sveta) =====
+// Kúpiš (odomkneš) za 💎 a potom ich pokladáš ťuknutím. '.' = nič.
+// Bloky odkazujú na WORLD_BLOCKS (plank, brick…), SPRITE_COLORS alebo 'e:emoji'.
+export const STAMPS = [
+  // — stavby —
+  {
+    id: 'domcek', name: 'Drevený domček', emoji: '🏠', cost: 12, kind: 'build',
+    rows: [
+      ['.', 'brick', 'brick', 'brick', '.'],
+      ['plank', 'glass', 'plank', 'glass', 'plank'],
+      ['plank', 'plank', 'plank', 'plank', 'plank'],
+      ['plank', 'plank', 'door', 'plank', 'plank'],
+    ],
+  },
+  {
+    id: 'kamdom', name: 'Kamenný dom', emoji: '🏚️', cost: 22, kind: 'build',
+    rows: [
+      ['.', 'cobble', 'cobble', 'cobble', '.'],
+      ['stone', 'glass', 'stone', 'glass', 'stone'],
+      ['stone', 'stone', 'stone', 'stone', 'stone'],
+      ['stone', 'stone', 'door', 'stone', 'stone'],
+    ],
+  },
+  {
+    id: 'hrad', name: 'Hrad', emoji: '🏰', cost: 45, kind: 'build',
+    rows: [
+      ['cobble', '.', 'cobble', 'cobble', '.', 'cobble'],
+      ['brick', 'brick', 'brick', 'brick', 'brick', 'brick'],
+      ['brick', 'glass', 'brick', 'brick', 'glass', 'brick'],
+      ['brick', 'brick', 'brick', 'door', 'brick', 'brick'],
+      ['brick', 'brick', 'brick', 'brick', 'brick', 'brick'],
+    ],
+  },
+  {
+    id: 'veza', name: 'Veža', emoji: '🗼', cost: 25, kind: 'build',
+    rows: [
+      ['cobble', '.', 'cobble'],
+      ['brick', 'glass', 'brick'],
+      ['brick', 'brick', 'brick'],
+      ['brick', 'glass', 'brick'],
+      ['brick', 'door', 'brick'],
+    ],
+  },
+  {
+    id: 'strom', name: 'Strom', emoji: '🌳', cost: 6, kind: 'build',
+    rows: [
+      ['leaves', 'leaves', 'leaves'],
+      ['leaves', 'leaves', 'leaves'],
+      ['.', 'log', '.'],
+      ['.', 'log', '.'],
+    ],
+  },
+  {
+    id: 'jazero', name: 'Jazierko', emoji: '💧', cost: 8, kind: 'build',
+    rows: [
+      ['water', 'water', 'water', 'water'],
+      ['water', 'water', 'water', 'water'],
+    ],
+  },
+  {
+    id: 'taborak', name: 'Táborák', emoji: '🔥', cost: 6, kind: 'build',
+    rows: [
+      ['.', 'torch', '.'],
+      ['log', 'log', 'log'],
+    ],
+  },
+
+  // — postavičky (pixelové) —
+  {
+    id: 'creeper', name: 'Creeper', emoji: '🟩', cost: 18, kind: 'mob',
+    rows: [
+      ['cg', 'cg', 'cg'],
+      ['cd', 'cg', 'cd'],
+      ['cg', 'cd', 'cg'],
+    ],
+  },
+  {
+    id: 'steve', name: 'Steve', emoji: '🧑', cost: 20, kind: 'mob',
+    rows: [
+      ['hair', 'hair', 'hair'],
+      ['sk', 'sk', 'sk'],
+      ['shirt', 'shirt', 'shirt'],
+      ['legs', '.', 'legs'],
+    ],
+  },
+  {
+    id: 'enderman', name: 'Enderman', emoji: '🟪', cost: 16, kind: 'mob',
+    rows: [
+      ['ec', 'ec', 'ec'],
+      ['ec', 'ec', 'ec'],
+      ['ep', 'ec', 'ep'],
+      ['ec', 'ec', 'ec'],
+      ['ec', '.', 'ec'],
+    ],
+  },
+
+  // — postavičky (emoji) —
+  { id: 'zombie', name: 'Zombík', emoji: '🧟', cost: 8, kind: 'mob', rows: [['e:🧟']] },
+  { id: 'kostlivec', name: 'Kostlivec', emoji: '💀', cost: 8, kind: 'mob', rows: [['e:💀']] },
+  { id: 'drak', name: 'Drak', emoji: '🐉', cost: 22, kind: 'mob', rows: [['e:🐉']] },
+  { id: 'dedincan', name: 'Dedinčan', emoji: '🧑‍🌾', cost: 7, kind: 'mob', rows: [['e:🧑‍🌾']] },
+  { id: 'prasa', name: 'Prasiatko', emoji: '🐷', cost: 6, kind: 'mob', rows: [['e:🐷']] },
+  { id: 'krava', name: 'Kravička', emoji: '🐮', cost: 7, kind: 'mob', rows: [['e:🐮']] },
+  { id: 'ovca', name: 'Ovečka', emoji: '🐑', cost: 6, kind: 'mob', rows: [['e:🐑']] },
+  { id: 'sliepka', name: 'Sliepka', emoji: '🐔', cost: 6, kind: 'mob', rows: [['e:🐔']] },
+  { id: 'vlk', name: 'Vlk', emoji: '🐺', cost: 8, kind: 'mob', rows: [['e:🐺']] },
+  { id: 'macka', name: 'Mačka', emoji: '🐱', cost: 7, kind: 'mob', rows: [['e:🐱']] },
+
+  // — doplnky (emoji) —
+  { id: 'hrib', name: 'Hríb', emoji: '🍄', cost: 4, kind: 'deco', rows: [['e:🍄']] },
+  { id: 'fontana', name: 'Fontána', emoji: '⛲', cost: 10, kind: 'deco', rows: [['e:⛲']] },
+  { id: 'zastava', name: 'Zástava', emoji: '🚩', cost: 5, kind: 'deco', rows: [['e:🚩']] },
+  { id: 'stromcek', name: 'Stromček', emoji: '🎄', cost: 6, kind: 'deco', rows: [['e:🎄']] },
+  { id: 'dazduh', name: 'Dúha', emoji: '🌈', cost: 8, kind: 'deco', rows: [['e:🌈']] },
+  { id: 'oblak', name: 'Obláčik', emoji: '☁️', cost: 3, kind: 'deco', rows: [['e:☁️']] },
+];
+
+// ===== Dvojhlásky ia / ie / iu / ô =====
+export const DIPHTHONGS = [
+  { w: 'piatok', e: '📅', d: 'ia' },
+  { w: 'priateľ', e: '👫', d: 'ia' },
+  { w: 'piata', e: '✋', d: 'ia' },
+  { w: 'hrianka', e: '🍞', d: 'ia' },
+  { w: 'mlieko', e: '🥛', d: 'ie' },
+  { w: 'hviezda', e: '⭐', d: 'ie' },
+  { w: 'chlieb', e: '🥖', d: 'ie' },
+  { w: 'diera', e: '🕳️', d: 'ie' },
+  { w: 'biely', e: '⚪', d: 'ie' },
+  { w: 'akvárium', e: '🐠', d: 'iu' },
+  { w: 'terárium', e: '🦎', d: 'iu' },
+  { w: 'herbárium', e: '🌿', d: 'iu' },
+  { w: 'gymnázium', e: '🏫', d: 'iu' },
+  { w: 'kôň', e: '🐴', d: 'ô' },
+  { w: 'nôž', e: '🔪', d: 'ô' },
+  { w: 'stôl', e: '🪑', d: 'ô' },
+  { w: 'kôš', e: '🗑️', d: 'ô' },
+  { w: 'vôľa', e: '💪', d: 'ô' },
+];
+export const DIPHTHONG_OPTIONS = ['ia', 'ie', 'iu', 'ô'];
+
+// ===== Počítanie predmetov („koľko čoho je?") =====
+export const COUNT_EMOJI = ['🍎', '🐶', '⭐', '🌸', '🚗', '🐱', '🍌', '🐟', '🎈', '🍓', '🐝', '🦋'];
+
+// ===== Hláskovanie – krátke slová na sluchové skladanie =====
+export const SPELL_WORDS = [
+  { w: 'mama', e: '👩' }, { w: 'auto', e: '🚗' }, { w: 'pes', e: '🐶' },
+  { w: 'dom', e: '🏠' }, { w: 'ryba', e: '🐟' }, { w: 'sova', e: '🦉' },
+  { w: 'lopta', e: '⚽' }, { w: 'kvet', e: '🌸' }, { w: 'ruka', e: '✋' },
+  { w: 'oko', e: '👁️' }, { w: 'noha', e: '🦵' }, { w: 'myš', e: '🐭' },
+];
+
 // ===== Vety na čítanie (ťažšie, aj pre písané písmo) =====
 export const SENTENCES = [
   { s: 'Mama má psa.', e: '🐶' },
