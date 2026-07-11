@@ -338,6 +338,32 @@ export const DECORATIONS = [
   { id: 'snow',   emoji: '⛄', name: 'Snehuliak', cost: 13, pos: { left: '14%', bottom: '6%'  } },
 ];
 
+// ===== Môj svet – stavanie z kociek =====
+// Základné kocky (tráva, zem) sú zadarmo. Ostatné si odomkneš za 💎
+// a potom ich kladieš koľko chceš (kladenie je zadarmo).
+export const WORLD = { cols: 14, rows: 12 };
+export const WORLD_BLOCKS = [
+  { id: 'grass',   name: 'Tráva',   color: '#58b24c', cost: 0 },
+  { id: 'dirt',    name: 'Zem',     color: '#8d6e4b', cost: 0 },
+  { id: 'sand',    name: 'Piesok',  color: '#e6d29a', cost: 3 },
+  { id: 'stone',   name: 'Kameň',   color: '#9aa0a6', cost: 3 },
+  { id: 'cobble',  name: 'Dlažba',  color: '#767b80', cost: 4 },
+  { id: 'water',   name: 'Voda',    color: '#3fa7d6', cost: 4 },
+  { id: 'log',     name: 'Kmeň',    color: '#6d4c2f', cost: 4 },
+  { id: 'leaves',  name: 'Lístie',  color: '#3e8948', cost: 4 },
+  { id: 'plank',   name: 'Dosky',   color: '#c08a45', cost: 5 },
+  { id: 'snow',    name: 'Sneh',    color: '#eef4f7', cost: 5 },
+  { id: 'glass',   name: 'Sklo',    color: '#b7e3f0', cost: 6 },
+  { id: 'brick',   name: 'Tehla',   color: '#b0533f', cost: 7 },
+  { id: 'lava',    name: 'Láva',    color: '#e8622b', cost: 9 },
+  { id: 'gold',    name: 'Zlato',   color: '#f5c542', cost: 14 },
+  { id: 'diamond', name: 'Diamant', color: '#5fd8e8', cost: 22 },
+  { id: 'torch',   name: 'Fakľa',   color: '', emoji: '🔥', cost: 3 },
+  { id: 'flower',  name: 'Kvet',    color: '', emoji: '🌷', cost: 3 },
+  { id: 'door',    name: 'Dvere',   color: '', emoji: '🚪', cost: 4 },
+  { id: 'tnt',     name: 'TNT',     color: '#c0392b', emoji: '🧨', cost: 8 },
+];
+
 // ===== Vety na čítanie (ťažšie, aj pre písané písmo) =====
 export const SENTENCES = [
   { s: 'Mama má psa.', e: '🐶' },

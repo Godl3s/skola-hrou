@@ -569,6 +569,77 @@ body::after {
 .shop-owned { font-weight: 900; color: var(--grass-dark); flex: none; font-size: .9rem; }
 .shop-locked { font-size: 1.3rem; flex: none; opacity: .6; }
 
+/* ===== Môj svet – stavanie ===== */
+.world-grid {
+  display: grid;
+  gap: 0;
+  width: min(96vw, 460px);
+  margin: 12px auto;
+  border: 3px solid var(--ink);
+  border-radius: 8px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #8fd3f4 0%, #d8f1ff 60%);
+  box-shadow: var(--shadow);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.wcell {
+  aspect-ratio: 1;
+  border: 1px solid rgba(0, 0, 0, .05);
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  line-height: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.wcell.placed { border-color: rgba(0, 0, 0, .18); }
+.wcell.glass { opacity: .6; }
+.wcell.has-emoji { background: transparent; }
+
+.palette-wrap { margin: 8px 0; }
+.block-palette {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 6px 2px 10px;
+  -webkit-overflow-scrolling: touch;
+}
+.block-sw {
+  flex: none;
+  width: 58px;
+  border: 3px solid var(--ink);
+  border-radius: 8px;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, .2);
+  background: #fff;
+  cursor: pointer;
+  padding: 0;
+  overflow: hidden;
+  font-family: var(--font-body);
+}
+.block-sw:active { transform: translate(2px, 2px); box-shadow: 0 0 0 rgba(0,0,0,0); }
+.block-sw .chip-color {
+  height: 36px;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  background: #eee;
+}
+.block-sw .chip-label {
+  font-size: .58rem;
+  font-weight: 800;
+  padding: 3px 2px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.block-sw.locked { opacity: .9; }
+.block-sw.locked .chip-color { filter: grayscale(.35) brightness(.95); }
+.block-sw.sel { outline: 4px solid var(--accent); outline-offset: 1px; }
+.block-sw.eraser .chip-color { background: #fff; }
+
 @media (min-width: 480px) {
   .menu-grid { grid-template-columns: 1fr 1fr 1fr; }
   #page-title { font-size: 1.6rem; }

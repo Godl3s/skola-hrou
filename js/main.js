@@ -92,7 +92,7 @@ function renderMenu() {
       <li><b>Počítanie</b> – sčítanie/odčítanie do 10 a 20, dopĺňanie čísla a porovnávanie (učivo 1. ročníka). Príklad sa prečíta nahlas po slovensky.</li>
       <li><b>Čítanie</b> – slová, prvé písmená, skladanie slov aj čítanie viet. Prepínač <b>Tlačené/Písané</b> precvičí čítanie písaného písma.</li>
       <li>Pri chybe hra <b>nejde ďalej</b> – dieťa skúša znova, po druhom pokuse sa správna odpoveď rozbliká ako pomôcka.</li>
-      <li>Za odpovede zbiera 💎 a stúpa v <b>leveloch</b>; v <b>Chalúpke</b> si za diamanty kupuje domov a ozdoby.</li>
+      <li>Za odpovede zbiera 💎 a stúpa v <b>leveloch</b>; v <b>Mojom svete</b> si za diamanty odomyká kocky (piesok, voda, kameň, tehla, zlato…) a stavia vlastný svet – od domčeka po hrad.</li>
       <li>Zvuk funguje po prvom ťuknutí na obrazovku (pravidlo prehliadača).</li>
     </ul>
   `);
