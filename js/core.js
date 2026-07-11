@@ -38,8 +38,9 @@ export function levelInfo() {
 
 export function award(n) {
   const before = levelInfo().level;
+  const earned = getEarned(); // prečítaj PRED zmenou diamantov (getEarned má fallback na diamanty)
   lsSet('diamonds', getDiamonds() + n);
-  lsSet('earned', getEarned() + n);
+  lsSet('earned', earned + n);
   updateBadge(true);
   const info = levelInfo();
   if (info.level > before) {

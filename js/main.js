@@ -3,6 +3,7 @@ import { el, updateBadge, newEpoch, levelInfo, applyCursive, getCursive, setCurs
 import { GAMES } from './games.js';
 import { canSpeak, hasSlovakVoice, ensureAudio, sfx, speak } from './audio.js';
 import { renderReport } from './report.js';
+import { renderParent } from './parent.js';
 
 const app = document.getElementById('app');
 const title = document.getElementById('page-title');
@@ -101,6 +102,9 @@ function renderMenu() {
   const reportBtn = el('button', 'btn btn-blue btn-big', '📊 Report pre rodiča');
   reportBtn.addEventListener('click', () => { ensureAudio(); sfx.click(); location.hash = '#/report'; });
   parents.appendChild(reportBtn);
+  const parentBtn = el('button', 'btn btn-big', '🔒 Rodičovský vstup (odmeny 💎)');
+  parentBtn.addEventListener('click', () => { ensureAudio(); sfx.click(); location.hash = '#/rodic'; });
+  parents.appendChild(parentBtn);
   app.appendChild(parents);
 }
 
@@ -113,6 +117,12 @@ function render() {
     title.textContent = '📊 Report';
     app.innerHTML = '';
     renderReport(app);
+    return;
+  }
+  if (hash === 'rodic') {
+    title.textContent = '👨‍👩‍👧 Rodič';
+    app.innerHTML = '';
+    renderParent(app);
     return;
   }
   const game = GAMES.find(g => g.id === hash);
