@@ -435,6 +435,18 @@ body::after {
   margin-bottom: 12px;
 }
 
+.tier-badge {
+  background: #e2f5dd;
+  border: 3px solid var(--grass-dark);
+  color: #235a2b;
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-weight: 900;
+  font-size: .9rem;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
 .parents {
   margin-top: 20px;
   background: rgba(255,255,255,.75);

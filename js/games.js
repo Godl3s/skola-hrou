@@ -2,19 +2,19 @@
 import {
   el, shuffle, randInt, sample, award, spend, toast, confetti,
   progressDots, lsGet, lsSet, getDiamonds, getEarned, levelInfo, later,
-  getCursive, setCursive,
+  getCursive, setCursive, pickFresh,
 } from './core.js';
 import {
   speak, canSpeak, sfx, ensureAudio, playCountSounds, COUNT_SOUND_NAMES,
   speakMath, speakNumber, numberToSlovak,
 } from './audio.js';
 import {
-  SOUND_PAIRS, READING_WORDS, BUILD_WORDS, PIXEL_TEMPLATES, FREE_COLORS,
-  PRAISES, ENCOURAGE, WORLD, WORLD_BLOCKS, SENTENCES,
+  SOUND_PAIRS, READING_WORDS, READING_WORDS_L2, BUILD_WORDS, PIXEL_TEMPLATES, FREE_COLORS,
+  PRAISES, ENCOURAGE, WORLD, WORLD_BLOCKS, SENTENCES, SENTENCES_L2,
   STAMPS, SPRITE_COLORS, DIPHTHONGS, DIPHTHONG_OPTIONS, COUNT_EMOJI, SPELL_WORDS,
 } from './data.js';
 import { recordResult, recordMistake } from './stats.js';
-import { hasSpeechRecognition, listenOnce, matchesWord } from './speech.js';
+import { hasSpeechRecognition, listenOnce, matchesWord, matchesSentence } from './speech.js';
 
 // ---------- spoločné pomôcky ----------
 function praiseNow() {
@@ -144,7 +144,7 @@ const gameLogopedia = {
 
     const start = (pair) => {
       const TOTAL = 10;
-      const words = shuffle(pair.words).slice(0, TOTAL);
+      const words = pickFresh(pair.words, TOTAL, `logo-${pair.id}`, x => x.w);
       const dots = progressDots(TOTAL);
       const skill = `logopedia:${pair.id}`;
       const skillName = `${pair.a}/${pair.b}`;
@@ -416,6 +416,7 @@ const gameZvuky = {
 const MATIKA_NAMES = {
   add10: 'Sčítanie do 10', sub10: 'Odčítanie do 10', mix20: 'Plus/mínus do 20',
   missing: 'Doplň číslo', compare: 'Porovnávanie', count: 'Počítanie predmetov',
+  mem20: 'Pamäťové do 20',
 };
 function makeOptions(ans, max = 20) {
   const set = new Set([ans]);
@@ -443,6 +444,7 @@ const gameMatika = {
         { emoji: '➕', label: 'Sčítanie do 10', type: 'add10' },
         { emoji: '➖', label: 'Odčítanie do 10', type: 'sub10' },
         { emoji: '🚀', label: 'Plus a mínus do 20', type: 'mix20' },
+        { emoji: '🧠', label: 'Pamäťové do 20 (z hlavy)', type: 'mem20' },
         { emoji: '🧩', label: 'Doplň číslo (5 + ▢ = 8)', type: 'missing' },
         { emoji: '⚖️', label: 'Porovnaj čísla', type: 'compare' },
       ],
@@ -462,6 +464,17 @@ const gameMatika = {
         const a = randInt(1, 10);
         const b = randInt(0, a);
         return { a, b, op: '−', ans: a - b, max: 10 };
+      }
+      if (type === 'mem20') {
+        // pamäťové – väčšinou s prechodom cez desiatku
+        if (Math.random() < 0.5) {
+          const a = randInt(4, 9);
+          const b = randInt(Math.max(2, 11 - a), 9);
+          return { a, b, op: '+', ans: a + b, max: 20 };
+        }
+        const a = randInt(11, 18);
+        const b = randInt(Math.max(2, a - 9), 9);
+        return { a, b, op: '−', ans: a - b, max: 20 };
       }
       if (Math.random() < 0.5) {
         const a = randInt(1, 19);
@@ -493,7 +506,7 @@ const gameMatika = {
         replay.addEventListener('click', () => { ensureAudio(); speakMath(p.a, p.b, p.op); });
         panel.appendChild(replay);
 
-        if (p.a <= 10 && p.b <= 10) {
+        if (lvl.type !== 'mem20' && p.a <= 10 && p.b <= 10) {
           if (p.op === '+') {
             panel.appendChild(el('div', 'math-blocks', '🟩'.repeat(p.a) + '🟨'.repeat(p.b)));
           } else {
@@ -736,32 +749,41 @@ const gameCitanie = {
   emoji: '📖',
   desc: 'Slová, hláskovanie, dvojhlásky',
   render(container) {
-    const pick = () => levelScreen(
-      container,
-      'Poďme čítať! 📖',
-      [
+    const pick = () => {
+      const levels = [
         { emoji: '🖼️', label: 'Obrázok a slovo', mode: 'match' },
         { emoji: '🔤', label: 'Prvé písmenko', mode: 'first' },
         { emoji: '🧩', label: 'Poskladaj slovo', mode: 'build' },
         { emoji: '🔠', label: 'Hláskovanie', mode: 'spell' },
         { emoji: '🅰️', label: 'Dvojhlásky ia ie iu ô', mode: 'diphthong' },
         { emoji: '📜', label: 'Čítaj vetu', mode: 'sentence' },
-      ],
-      lvl => {
+      ];
+      if (hasSpeechRecognition()) {
+        levels.push({ emoji: '🎤', label: 'Čítaj nahlas (mikrofón)', mode: 'read' });
+      }
+      levelScreen(container, 'Poďme čítať! 📖', levels, lvl => {
         if (lvl.mode === 'match') startMatch();
         else if (lvl.mode === 'first') startFirst();
         else if (lvl.mode === 'build') startBuild();
         else if (lvl.mode === 'spell') startSpell();
         else if (lvl.mode === 'diphthong') startDiphthong();
+        else if (lvl.mode === 'read') startRead();
         else startSentence();
-      },
-      cursiveToggle()
-    );
+      }, cursiveToggle());
+    };
+
+    // sady sa rozširujú od Levelu 3 (Staviteľ) o ťažšie slová/vety
+    const isTier2 = () => levelInfo().level >= 3;
+    const readingPool = () => (isTier2() ? READING_WORDS.concat(READING_WORDS_L2) : READING_WORDS);
+    const sentencePool = () => (isTier2() ? SENTENCES.concat(SENTENCES_L2) : SENTENCES);
+    const tierNote = () => (isTier2()
+      ? el('div', 'tier-badge', '📈 Level 2 – ťažšie slová a vety!') : null);
 
     // — obrázok a slovo —
     const startMatch = () => {
       const TOTAL = 8;
-      const words = shuffle(READING_WORDS).slice(0, TOTAL);
+      const pool = readingPool();
+      const words = pickFresh(pool, TOTAL, 'read-match', x => x.w);
       const dots = progressDots(TOTAL);
       let idx = 0, score = 0;
 
@@ -769,11 +791,12 @@ const gameCitanie = {
         if (idx >= TOTAL) { resultScreen(container, score, TOTAL, startMatch); return; }
         dots.set(idx, 'current');
         const item = words[idx];
-        const distractors = shuffle(READING_WORDS.filter(x => x.w !== item.w)).slice(0, 2);
+        const distractors = shuffle(pool.filter(x => x.w !== item.w)).slice(0, 2);
         const options = shuffle([item, ...distractors]);
         const st = makeState();
 
         container.innerHTML = '';
+        const tn = tierNote(); if (tn) container.appendChild(tn);
         container.appendChild(dots.node);
         const panel = el('div', 'game-panel');
         panel.appendChild(el('div', 'big-emoji', item.e));
@@ -819,7 +842,7 @@ const gameCitanie = {
     const startFirst = () => {
       const TOTAL = 8;
       const ALPHABET = 'ABCČDEFGHJKLMNOPRSŠTUVZŽ'.split('');
-      const words = shuffle(READING_WORDS).slice(0, TOTAL);
+      const words = pickFresh(readingPool(), TOTAL, 'read-first', x => x.w);
       const dots = progressDots(TOTAL);
       let idx = 0, score = 0;
 
@@ -887,7 +910,7 @@ const gameCitanie = {
     // — poskladaj slovo —
     const startBuild = () => {
       const TOTAL = 6;
-      const words = shuffle(BUILD_WORDS).slice(0, TOTAL);
+      const words = pickFresh(BUILD_WORDS, TOTAL, 'read-build', x => x.w);
       const dots = progressDots(TOTAL);
       let idx = 0, score = 0;
 
@@ -990,10 +1013,10 @@ const gameCitanie = {
       next();
     };
 
-    // — čítaj vetu (samostatné čítanie, aj písané písmo) —
+    // — čítaj vetu (samostatné čítanie, aj mikrofón) —
     const startSentence = () => {
       const TOTAL = 6;
-      const items = shuffle(SENTENCES).slice(0, TOTAL);
+      const items = pickFresh(sentencePool(), TOTAL, 'read-sent', x => x.s);
       const dots = progressDots(TOTAL);
       let idx = 0;
 
@@ -1001,8 +1024,10 @@ const gameCitanie = {
         if (idx >= TOTAL) { resultScreen(container, TOTAL, TOTAL, startSentence); return; }
         dots.set(idx, 'current');
         const item = items[idx];
+        let solved = false;
 
         container.innerHTML = '';
+        const tn = tierNote(); if (tn) container.appendChild(tn);
         container.appendChild(cursiveToggle());
         container.appendChild(dots.node);
         const panel = el('div', 'game-panel');
@@ -1010,25 +1035,130 @@ const gameCitanie = {
         panel.appendChild(el('div', 'sentence read-word', item.s));
         panel.appendChild(el('p', '', 'Prečítaj vetu nahlas. 📣'));
 
+        const status = el('div', 'mic-status', '');
+        const advance = () => {
+          if (solved) return;
+          solved = true;
+          sfx.correct(); award(1); confetti(6);
+          toast(`${sample(PRAISES)} +1 💎`);
+          recordResult({ game: 'citanie', gameName: 'Čítanie', skill: 'citanie:sentence', skillName: 'Čítanie viet', firstTry: true });
+          dots.set(idx, 'ok');
+          idx++;
+          later(next, 1000);
+        };
+
         const row = el('div', 'stack');
         if (canSpeak()) {
           const hear = el('button', 'btn btn-blue', '🔊 Vypočuj vetu');
           hear.addEventListener('click', () => { ensureAudio(); speak(item.s, 0.8); });
           row.appendChild(hear);
         }
-        const done = el('button', 'btn btn-green btn-big', '✅ Prečítal(a) som!');
-        done.addEventListener('click', () => {
-          ensureAudio();
-          sfx.correct();
-          award(1);
-          confetti(6);
-          toast(`${sample(PRAISES)} +1 💎`);
-          recordResult({ game: 'citanie', gameName: 'Čítanie', skill: 'citanie:sentence', skillName: 'Čítanie viet', firstTry: true });
-          dots.set(idx, 'ok');
-          idx++;
-          later(next, 900);
-        });
+        if (hasSpeechRecognition()) {
+          let busy = false;
+          const mic = el('button', 'btn btn-green btn-big', '🎤 Prečítam ju');
+          mic.addEventListener('click', async () => {
+            if (busy || solved) return;
+            busy = true; ensureAudio(); mic.disabled = true;
+            status.innerHTML = '👂 Počúvam… čítaj vetu';
+            const res = await listenOnce('sk-SK', 8000);
+            busy = false; mic.disabled = false;
+            if (!res.ok) {
+              status.innerHTML = (res.error === 'not-allowed' || res.error === 'service-not-allowed')
+                ? '🔇 Povoľte mikrofón a skúste znova.' : '🤔 Nepočula som ťa, skús znova.';
+              return;
+            }
+            const m = matchesSentence(item.s, res.alternatives);
+            if (m.match) { status.innerHTML = '✅ Super, prečítané!'; mic.disabled = true; advance(); }
+            else { status.innerHTML = `🙂 Počula som „<i>${m.heard || '…'}</i>". Skús znova, alebo daj „Prečítal(a) som".`; }
+          });
+          row.appendChild(mic);
+        }
+        const done = el('button', hasSpeechRecognition() ? 'btn' : 'btn btn-green btn-big', '✅ Prečítal(a) som!');
+        done.addEventListener('click', () => { ensureAudio(); advance(); });
         row.appendChild(done);
+        panel.appendChild(row);
+        panel.appendChild(status);
+        container.appendChild(panel);
+      };
+      next();
+    };
+
+    // — čítaj slovo nahlas (mikrofón počúva a vyhodnotí) —
+    const startRead = () => {
+      const TOTAL = 6;
+      const words = pickFresh(readingPool(), TOTAL, 'read-read', x => x.w);
+      const dots = progressDots(TOTAL);
+      const skill = 'citanie:read';
+      const skillName = 'Čítanie nahlas 🎤';
+      let idx = 0, score = 0;
+
+      const next = () => {
+        if (idx >= TOTAL) { resultScreen(container, score, TOTAL, startRead); return; }
+        dots.set(idx, 'current');
+        const item = words[idx];
+        const st = makeState();
+        let busy = false;
+
+        container.innerHTML = '';
+        const tn = tierNote(); if (tn) container.appendChild(tn);
+        container.appendChild(el('div', 'hint-banner',
+          '🎤 Prečítaj slovo nahlas – appka ťa počúva. Vyhodnotenie je približné.'));
+        container.appendChild(dots.node);
+        const panel = el('div', 'game-panel');
+        panel.appendChild(el('div', 'big-emoji', item.e));
+        panel.appendChild(el('div', 'word-display read-word', item.w.toUpperCase()));
+        if (canSpeak()) {
+          const hear = el('button', 'btn btn-blue', '🔊 Vypočuj');
+          hear.addEventListener('click', () => { ensureAudio(); speak(item.w); });
+          panel.appendChild(hear);
+        }
+        const status = el('div', 'mic-status', 'Prečítaj: <b>' + item.w + '</b>');
+        panel.appendChild(status);
+
+        const finishOk = () => {
+          st.locked = true;
+          sfx.correct();
+          if (st.firstTry) { score++; award(1); confetti(8); toast(`${praiseNow()} +1 💎`); }
+          else toast(praiseNow());
+          trackResult(st, { game: 'citanie', gameName: 'Čítanie', skill, skillName });
+          status.innerHTML = '✅ Super, prečítané!';
+          dots.set(idx, st.firstTry ? 'ok' : 'bad');
+          idx++;
+          later(next, 1300);
+        };
+
+        const mic = el('button', 'btn btn-green btn-big', '🎤 Prečítaj slovo');
+        mic.addEventListener('click', async () => {
+          if (busy || st.locked) return;
+          busy = true; ensureAudio(); mic.disabled = true;
+          status.innerHTML = '👂 Počúvam… čítaj <b>' + item.w + '</b>';
+          const res = await listenOnce('sk-SK');
+          busy = false; mic.disabled = false;
+          if (!res.ok) {
+            status.innerHTML = (res.error === 'not-allowed' || res.error === 'service-not-allowed')
+              ? '🔇 Povoľte mikrofón a skúste znova.' : '🤔 Nepočula som ťa, skús ešte raz.';
+            return;
+          }
+          const m = matchesWord(item.w, res.alternatives);
+          if (m.match) { finishOk(); }
+          else {
+            if (st.firstTry) recordMistake({ skill, skillName, label: item.w, chose: m.heard || '?', correct: item.w });
+            st.firstTry = false;
+            sfx.wrong();
+            status.innerHTML = `🙂 Počula som „<i>${m.heard || '…'}</i>". Skús to prečítať zreteľnejšie.`;
+          }
+        });
+        const skip = el('button', 'btn', '➡️ Preskočiť');
+        skip.addEventListener('click', () => {
+          if (st.locked) return;
+          st.locked = true; st.firstTry = false;
+          trackResult(st, { game: 'citanie', gameName: 'Čítanie', skill, skillName });
+          dots.set(idx, 'bad');
+          idx++;
+          later(next, 400);
+        });
+        const row = el('div', 'stack');
+        row.append(mic, skip);
         panel.appendChild(row);
         container.appendChild(panel);
       };
@@ -1038,7 +1168,7 @@ const gameCitanie = {
     // — hláskovanie (spelovanie) —
     const startSpell = () => {
       const TOTAL = 6;
-      const words = shuffle(SPELL_WORDS).slice(0, TOTAL);
+      const words = pickFresh(SPELL_WORDS, TOTAL, 'read-spell', x => x.w);
       const dots = progressDots(TOTAL);
       let idx = 0;
 
@@ -1104,7 +1234,7 @@ const gameCitanie = {
     // — dvojhlásky ia / ie / iu / ô —
     const startDiphthong = () => {
       const TOTAL = 8;
-      const words = shuffle(DIPHTHONGS).slice(0, TOTAL);
+      const words = pickFresh(DIPHTHONGS, TOTAL, 'read-diph', x => x.w);
       const dots = progressDots(TOTAL);
       const skill = 'citanie:diphthong';
       const skillName = 'Dvojhlásky';

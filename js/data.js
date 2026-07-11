@@ -115,6 +115,16 @@ export const READING_WORDS = [
   { w: 'kľúč', e: '🔑' }, { w: 'medveď', e: '🐻' }, { w: 'noha', e: '🦵' },
 ];
 
+// Čítanie – ťažšie slová (Level 2)
+export const READING_WORDS_L2 = [
+  { w: 'motýľ', e: '🦋' }, { w: 'slnečnica', e: '🌻' }, { w: 'korytnačka', e: '🐢' },
+  { w: 'zmrzlina', e: '🍦' }, { w: 'lietadlo', e: '✈️' }, { w: 'bicykel', e: '🚲' },
+  { w: 'dáždnik', e: '☂️' }, { w: 'veverička', e: '🐿️' }, { w: 'jahoda', e: '🍓' },
+  { w: 'ceruzka', e: '✏️' }, { w: 'delfín', e: '🐬' }, { w: 'tučniak', e: '🐧' },
+  { w: 'hodiny', e: '🕐' }, { w: 'pavúk', e: '🕷️' }, { w: 'balón', e: '🎈' },
+  { w: 'raketa', e: '🚀' }, { w: 'húsenica', e: '🐛' }, { w: 'lienka', e: '🐞' },
+];
+
 // Krátke slová na skladanie z písmen (3–5 písmen)
 export const BUILD_WORDS = [
   { w: 'dom', e: '🏠' }, { w: 'pes', e: '🐶' }, { w: 'oko', e: '👁️' },
@@ -536,6 +546,22 @@ export const SENTENCES = [
   { s: 'Zajko skáče po tráve.', e: '🐰' },
   { s: 'Včela letí ku kvetu.', e: '🐝' },
   { s: 'Máme doma malú myš.', e: '🐭' },
+];
+
+// Ťažšie vety (Level 2) – dlhšie, s otázkami
+export const SENTENCES_L2 = [
+  { s: 'Malý psík beží po zelenej lúke.', e: '🐕' },
+  { s: 'Naša mačka rada spí na okne.', e: '🐱' },
+  { s: 'V lese sme našli veľký hríb.', e: '🍄' },
+  { s: 'Deti stavajú hrad z piesku.', e: '🏖️' },
+  { s: 'Kde je moja červená čiapka?', e: '🧢' },
+  { s: 'Ráno svieti slnko a spievajú vtáky.', e: '🌅' },
+  { s: 'Babka upiekla sladký koláč.', e: '🥧' },
+  { s: 'Chlapec kreslí veľké žlté auto.', e: '🚗' },
+  { s: 'Na jeseň padá lístie zo stromov.', e: '🍂' },
+  { s: 'Poď sa hrať von na dvor!', e: '🥎' },
+  { s: 'Motýľ sadol na krásny kvet.', e: '🦋' },
+  { s: 'V noci svieti mesiac a hviezdy.', e: '🌙' },
 ];
 
 // Pochvaly

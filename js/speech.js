@@ -55,6 +55,27 @@ function lev(a, b) {
   return d[m][n];
 }
 
+function tokens(s) {
+  return (s || '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .split(/[^a-z0-9]+/).filter(Boolean);
+}
+
+// Porovná celú vetu – koľko cieľových slov sa objavilo v tom, čo bolo počuť.
+export function matchesSentence(target, alternatives) {
+  const tw = tokens(target);
+  if (!tw.length) return { match: false, heard: '', score: 0 };
+  let best = 0, heard = (alternatives && alternatives[0]) || '';
+  for (const a of (alternatives || [])) {
+    const aw = new Set(tokens(a));
+    let hit = 0;
+    tw.forEach(w => { if (aw.has(w)) hit++; });
+    const frac = hit / tw.length;
+    if (frac > best) { best = frac; heard = a; }
+  }
+  return { match: best >= 0.6, heard, score: best };
+}
+
 // Porovná cieľové slovo s tým, čo bolo počuť.
 export function matchesWord(target, alternatives) {
   const t = norm(target);

@@ -108,6 +108,19 @@ export function randInt(min, max) {
 
 export function sample(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
+// Vyberie `count` položiek tak, aby sa neopakovali, kým sa neprejde celý pool.
+// `key` odlišuje aktivitu, `idOf` získa identifikátor položky.
+export function pickFresh(pool, count, key, idOf = (x) => x) {
+  const sk = 'seen.' + key;
+  let seen = new Set(lsGet(sk, []));
+  let fresh = pool.filter(x => !seen.has(idOf(x)));
+  if (fresh.length < count) { seen = new Set(); fresh = pool.slice(); }
+  const chosen = shuffle(fresh).slice(0, count);
+  chosen.forEach(x => seen.add(idOf(x)));
+  lsSet(sk, [...seen]);
+  return chosen;
+}
+
 // --- epocha obrazovky: časovače z opustenej hry sa už nevykonajú ---
 let epoch = 0;
 export function newEpoch() { return ++epoch; }
