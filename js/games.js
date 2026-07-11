@@ -1302,7 +1302,154 @@ const gameCitanie = {
   },
 };
 
-// ---------- 5) MAĽOVANKA ----------
+// ---------- 5) HODINY (ručičkové) ----------
+// čas po slovensky
+const HOUR_FEM = ['dvanásť', 'jedna', 'dve', 'tri', 'štyri', 'päť', 'šesť',
+  'sedem', 'osem', 'deväť', 'desať', 'jedenásť', 'dvanásť'];
+const ORD_GEN = ['dvanástej', 'prvej', 'druhej', 'tretej', 'štvrtej', 'piatej',
+  'šiestej', 'siedmej', 'ôsmej', 'deviatej', 'desiatej', 'jedenástej', 'dvanástej'];
+const NA_HOUR = ['dvanásť', 'jednu', 'dve', 'tri', 'štyri', 'päť', 'šesť',
+  'sedem', 'osem', 'deväť', 'desať', 'jedenásť', 'dvanásť'];
+
+function timeToSlovak(h, m) {
+  if (m === 0) {
+    if (h === 1) return 'Je jedna hodina.';
+    if (h >= 2 && h <= 4) return `Sú ${HOUR_FEM[h]} hodiny.`;
+    return `Je ${HOUR_FEM[h]} hodín.`;
+  }
+  const next = (h % 12) + 1;
+  if (m === 15) return `Je štvrť na ${NA_HOUR[next]}.`;
+  if (m === 30) return `Je pol ${ORD_GEN[next]}.`;
+  if (m === 45) return `Je trištvrte na ${NA_HOUR[next]}.`;
+  return `Je ${h}:${String(m).padStart(2, '0')}.`;
+}
+
+function buildClockSVG(h, m) {
+  const cx = 100, cy = 100;
+  const hourAng = ((h % 12) * 30 + m * 0.5) * Math.PI / 180;
+  const minAng = (m * 6) * Math.PI / 180;
+  const hx = cx + 42 * Math.sin(hourAng), hy = cy - 42 * Math.cos(hourAng);
+  const mx = cx + 66 * Math.sin(minAng), my = cy - 66 * Math.cos(minAng);
+  let nums = '', ticks = '';
+  for (let n = 1; n <= 12; n++) {
+    const a = n * 30 * Math.PI / 180;
+    const x = cx + 74 * Math.sin(a), y = cy - 74 * Math.cos(a);
+    nums += `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" dominant-baseline="central" font-size="17" font-weight="900" fill="#2b2b2b" font-family="Nunito, sans-serif">${n}</text>`;
+  }
+  for (let n = 0; n < 12; n++) {
+    const a = n * 30 * Math.PI / 180;
+    const x1 = cx + 85 * Math.sin(a), y1 = cy - 85 * Math.cos(a);
+    const x2 = cx + 92 * Math.sin(a), y2 = cy - 92 * Math.cos(a);
+    ticks += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#2b2b2b" stroke-width="2"/>`;
+  }
+  return `<svg viewBox="0 0 200 200" class="clock-svg" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="100" cy="100" r="94" fill="#fff" stroke="#2b2b2b" stroke-width="5"/>
+    ${ticks}${nums}
+    <line x1="100" y1="100" x2="${hx.toFixed(1)}" y2="${hy.toFixed(1)}" stroke="#2b2b2b" stroke-width="7" stroke-linecap="round"/>
+    <line x1="100" y1="100" x2="${mx.toFixed(1)}" y2="${my.toFixed(1)}" stroke="#e05656" stroke-width="5" stroke-linecap="round"/>
+    <circle cx="100" cy="100" r="6" fill="#2b2b2b"/>
+  </svg>`;
+}
+
+const gameHodiny = {
+  id: 'hodiny',
+  name: 'Hodiny',
+  emoji: '🕐',
+  desc: 'Koľko je hodín?',
+  render(container) {
+    const pick = () => levelScreen(
+      container,
+      'Nauč sa čítať ručičkové hodiny! 🕐',
+      [
+        { emoji: '🕐', label: 'Celé hodiny', mode: 'whole' },
+        { emoji: '🕧', label: 'Celé a pol', mode: 'half' },
+        { emoji: '⏱️', label: 'Aj štvrť a trištvrte', mode: 'quarter' },
+      ],
+      lvl => start(lvl.mode)
+    );
+
+    const start = (mode) => {
+      const TOTAL = 8;
+      const dots = progressDots(TOTAL);
+      const skill = `hodiny:${mode}`;
+      const skillName = mode === 'whole' ? 'Celé hodiny'
+        : mode === 'half' ? 'Celé a pol' : 'Štvrť hodiny';
+      const minutesFor = mode === 'whole' ? [0] : mode === 'half' ? [0, 30] : [0, 15, 30, 45];
+      let idx = 0, score = 0;
+
+      const label = (H, M) => `${H}:${String(M).padStart(2, '0')}`;
+
+      const next = () => {
+        if (idx >= TOTAL) { resultScreen(container, score, TOTAL, () => start(mode)); return; }
+        dots.set(idx, 'current');
+        const h = randInt(1, 12);
+        const m = sample(minutesFor);
+        const st = makeState();
+        const correct = label(h, m);
+
+        const opts = new Set([correct]);
+        while (opts.size < 4) {
+          let hh = h, mm = m;
+          if (minutesFor.length > 1 && Math.random() < 0.5) mm = sample(minutesFor);
+          else hh = ((h - 1 + randInt(1, 11)) % 12) + 1;
+          opts.add(label(hh, mm));
+        }
+        const options = shuffle([...opts]);
+
+        container.innerHTML = '';
+        container.appendChild(dots.node);
+        const panel = el('div', 'game-panel');
+        const clockWrap = el('div', 'clock-wrap');
+        clockWrap.innerHTML = buildClockSVG(h, m);
+        panel.appendChild(clockWrap);
+        panel.appendChild(el('p', '', 'Koľko je hodín?'));
+
+        if (canSpeak()) {
+          const say = el('button', 'btn btn-blue', '🔊 Vypočuj čas');
+          say.addEventListener('click', () => { ensureAudio(); speak(timeToSlovak(h, m)); });
+          panel.appendChild(say);
+        }
+
+        const grid = el('div', 'answers-grid');
+        const btnFor = {};
+        const reveal = () => { if (btnFor[correct]) btnFor[correct].classList.add('hint'); };
+        options.forEach(opt => {
+          const b = el('button', 'btn', opt);
+          btnFor[opt] = b;
+          b.addEventListener('click', () => {
+            if (st.locked) return;
+            ensureAudio();
+            if (opt === correct) {
+              st.locked = true;
+              b.classList.add('correct');
+              b.classList.remove('hint');
+              sfx.correct();
+              speak(timeToSlovak(h, m));
+              if (st.firstTry) { score++; award(1); confetti(6); toast(`${sample(PRAISES)} +1 💎`); }
+              else toast(sample(PRAISES));
+              trackResult(st, { game: 'hodiny', gameName: 'Hodiny', skill, skillName });
+              dots.set(idx, st.firstTry ? 'ok' : 'bad');
+              idx++;
+              later(next, 1700);
+            } else {
+              onWrongDefault(st, b, reveal, { skill, skillName, label: correct, chose: opt, correct });
+            }
+          });
+          grid.appendChild(b);
+        });
+        panel.appendChild(grid);
+        container.appendChild(panel);
+
+        if (canSpeak()) later(() => speak(timeToSlovak(h, m)), 350);
+      };
+      next();
+    };
+
+    pick();
+  },
+};
+
+// ---------- 6) MAĽOVANKA ----------
 function drawPreview(canvas, tpl) {
   const rows = tpl.grid.length;
   const cols = tpl.grid[0].length;
@@ -1665,6 +1812,7 @@ export const GAMES = [
   gameLogopedia,
   gameZvuky,
   gameMatika,
+  gameHodiny,
   gameCitanie,
   gameMalovanka,
   gameSvet,

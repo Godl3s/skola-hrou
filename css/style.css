@@ -301,6 +301,10 @@ body::after {
   margin: 12px 0;
   word-break: break-word;
 }
+
+/* hodiny */
+.clock-wrap { display: flex; justify-content: center; margin: 4px 0 10px; }
+.clock-svg { width: min(62vw, 210px); height: auto; }
 .letter-tiles { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
 .letter-tiles .btn { font-family: var(--font-head); font-size: 1.8rem; min-width: 58px; min-height: 62px; padding: 6px; }
 .letter-tiles .btn.used { visibility: hidden; }
