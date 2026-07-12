@@ -1,14 +1,15 @@
 // ===== Rodičovský panel (za PIN) – manuálne prideľovanie diamantov =====
 import {
   el, award, getDiamonds, getEarned, levelInfo, updateBadge,
-  lsGet, lsSet, toast, confetti,
+  lsGet, lsSet, metaGet, metaSet, toast, confetti,
 } from './core.js';
 import { ensureAudio, sfx, speak } from './audio.js';
 
 let authed = false;               // platí počas relácie
 const DEFAULT_PIN = '12345';
-const getPin = () => String(lsGet('parentPin', DEFAULT_PIN));
-const setPin = (p) => lsSet('parentPin', String(p));
+// PIN je spoločný pre všetky profily (meta), nie per-profil
+const getPin = () => String(metaGet('parentPin', DEFAULT_PIN));
+const setPin = (p) => metaSet('parentPin', String(p));
 
 export function renderParent(container) {
   if (authed) renderPanel(container);

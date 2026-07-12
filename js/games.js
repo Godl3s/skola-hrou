@@ -15,6 +15,7 @@ import {
 } from './data.js';
 import { recordResult, recordMistake } from './stats.js';
 import { hasSpeechRecognition, listenOnce, matchesWord, matchesSentence } from './speech.js';
+import { gameKampan } from './campaign.js';
 
 // ---------- spoločné pomôcky ----------
 function praiseNow() {
@@ -416,7 +417,7 @@ const gameZvuky = {
 const MATIKA_NAMES = {
   add10: 'Sčítanie do 10', sub10: 'Odčítanie do 10', mix20: 'Plus/mínus do 20',
   missing: 'Doplň číslo', compare: 'Porovnávanie', count: 'Počítanie predmetov',
-  mem20: 'Pamäťové do 20',
+  mem20: 'Pamäťové do 20', chain: 'Kombinované počítanie',
 };
 function makeOptions(ans, max = 20) {
   const set = new Set([ans]);
@@ -445,12 +446,14 @@ const gameMatika = {
         { emoji: '➖', label: 'Odčítanie do 10', type: 'sub10' },
         { emoji: '🚀', label: 'Plus a mínus do 20', type: 'mix20' },
         { emoji: '🧠', label: 'Pamäťové do 20 (z hlavy)', type: 'mem20' },
+        { emoji: '🔗', label: 'Kombinované (3 + 4 − 2)', type: 'chain' },
         { emoji: '🧩', label: 'Doplň číslo (5 + ▢ = 8)', type: 'missing' },
         { emoji: '⚖️', label: 'Porovnaj čísla', type: 'compare' },
       ],
       lvl => (lvl.type === 'compare' ? startCompare(lvl)
         : lvl.type === 'missing' ? startMissing(lvl)
-        : lvl.type === 'count' ? startCount(lvl) : start(lvl))
+        : lvl.type === 'count' ? startCount(lvl)
+        : lvl.type === 'chain' ? startChain(lvl) : start(lvl))
     );
 
     const genProblem = (type) => {
@@ -609,6 +612,84 @@ const gameMatika = {
               onWrongDefault(st, b, reveal, {
                 skill: 'matika:missing', skillName: MATIKA_NAMES.missing,
                 label: p.text, chose: opt, correct: p.ans,
+              });
+            }
+          });
+          grid.appendChild(b);
+        });
+        panel.appendChild(grid);
+        container.appendChild(panel);
+
+        later(() => say(p), 350);
+      };
+      next();
+    };
+
+    const startChain = (lvl) => {
+      const TOTAL = 10;
+      const dots = progressDots(TOTAL);
+      let idx = 0, score = 0;
+
+      const gen = () => {
+        for (let t = 0; t < 50; t++) {
+          const a = randInt(1, 10);
+          const op1 = Math.random() < 0.5 ? '+' : '−';
+          const b = randInt(1, 9);
+          const mid = op1 === '+' ? a + b : a - b;
+          if (mid < 0 || mid > 20) continue;
+          const op2 = Math.random() < 0.5 ? '+' : '−';
+          const c = randInt(1, 9);
+          const ans = op2 === '+' ? mid + c : mid - c;
+          if (ans < 0 || ans > 20) continue;
+          return { a, b, c, op1, op2, ans };
+        }
+        return { a: 2, b: 3, c: 1, op1: '+', op2: '+', ans: 6 };
+      };
+      const opWord = (o) => (o === '+' ? 'plus' : 'mínus');
+      const say = (p) => speak(
+        `Koľko je ${numberToSlovak(p.a)} ${opWord(p.op1)} ${numberToSlovak(p.b)} ${opWord(p.op2)} ${numberToSlovak(p.c)}?`,
+        0.85);
+
+      const next = () => {
+        if (idx >= TOTAL) { resultScreen(container, score, TOTAL, () => startChain(lvl)); return; }
+        dots.set(idx, 'current');
+        const p = gen();
+        const st = makeState();
+
+        container.innerHTML = '';
+        container.appendChild(dots.node);
+        const panel = el('div', 'game-panel');
+        panel.appendChild(el('div', 'math-expr', `${p.a} ${p.op1} ${p.b} ${p.op2} ${p.c} = ?`));
+        panel.appendChild(el('p', '', '<small>Počítaj postupne zľava doprava. 👉</small>'));
+
+        const replay = el('button', 'btn btn-blue', '🔊 Prečítaj príklad');
+        replay.addEventListener('click', () => { ensureAudio(); say(p); });
+        panel.appendChild(replay);
+
+        const grid = el('div', 'answers-grid');
+        const btnFor = {};
+        const reveal = () => { if (btnFor[p.ans]) btnFor[p.ans].classList.add('hint'); };
+        makeOptions(p.ans, 20).forEach(opt => {
+          const b = el('button', 'btn', String(opt));
+          btnFor[opt] = b;
+          b.addEventListener('click', () => {
+            if (st.locked) return;
+            ensureAudio();
+            if (opt === p.ans) {
+              st.locked = true;
+              b.classList.add('correct');
+              b.classList.remove('hint');
+              sfx.correct();
+              if (st.firstTry) { score++; award(1); confetti(6); toast(`${praiseNow()} +1 💎`); }
+              else toast(praiseNow());
+              trackResult(st, { game: 'matika', gameName: 'Počítanie', skill: 'matika:chain', skillName: MATIKA_NAMES.chain });
+              dots.set(idx, st.firstTry ? 'ok' : 'bad');
+              idx++;
+              later(next, 1500);
+            } else {
+              onWrongDefault(st, b, reveal, {
+                skill: 'matika:chain', skillName: MATIKA_NAMES.chain,
+                label: `${p.a} ${p.op1} ${p.b} ${p.op2} ${p.c}`, chose: opt, correct: p.ans,
               });
             }
           });
@@ -1809,6 +1890,7 @@ const gameSvet = {
 };
 
 export const GAMES = [
+  gameKampan,
   gameLogopedia,
   gameZvuky,
   gameMatika,

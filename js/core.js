@@ -1,17 +1,113 @@
-// ===== Jadro: stav, diamanty, pomocné funkcie =====
+// ===== Jadro: stav, diamanty, profily, pomocné funkcie =====
 import { LEVELS } from './data.js';
 
-const LS_PREFIX = 'skolahrou.';
+const APP_PREFIX = 'skolahrou.';
+const META_PREFIX = APP_PREFIX + 'meta.';
 
-export function lsGet(key, fallback) {
+function rawGet(key, fallback) {
   try {
-    const v = localStorage.getItem(LS_PREFIX + key);
+    const v = localStorage.getItem(key);
     return v === null ? fallback : JSON.parse(v);
   } catch { return fallback; }
 }
+function rawSet(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+}
 
+// --- meta (spoločné pre všetky profily: zoznam profilov, PIN…) ---
+export function metaGet(key, fallback) { return rawGet(META_PREFIX + key, fallback); }
+export function metaSet(key, value) { rawSet(META_PREFIX + key, value); }
+
+// --- profily ---
+// Dáta každého profilu žijú pod skolahrou.p.<id>. ; migrácia presunie
+// starý postup (skolahrou.diamonds…) do prvého profilu.
+(function migrateToProfiles() {
+  try {
+    if (localStorage.getItem(META_PREFIX + 'profiles')) return;
+    const legacy = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(APP_PREFIX) &&
+          !k.startsWith(META_PREFIX) && !k.startsWith(APP_PREFIX + 'p.')) {
+        legacy.push(k);
+      }
+    }
+    legacy.forEach(k => {
+      const short = k.slice(APP_PREFIX.length);
+      const nk = short === 'parentPin'
+        ? META_PREFIX + 'parentPin'
+        : APP_PREFIX + 'p.p1.' + short;
+      const v = localStorage.getItem(k);
+      if (v !== null) localStorage.setItem(nk, v);
+      localStorage.removeItem(k);
+    });
+    rawSet(META_PREFIX + 'profiles', [{ id: 'p1', name: 'Hráčka 1', emoji: '👧' }]);
+    rawSet(META_PREFIX + 'active', 'p1');
+  } catch {}
+})();
+
+export function getProfiles() {
+  return metaGet('profiles', [{ id: 'p1', name: 'Hráčka 1', emoji: '👧' }]);
+}
+export function saveProfiles(list) { metaSet('profiles', list); }
+export function activeProfileId() {
+  const id = metaGet('active', 'p1');
+  return getProfiles().some(p => p.id === id) ? id : getProfiles()[0].id;
+}
+export function activeProfile() {
+  const id = activeProfileId();
+  return getProfiles().find(p => p.id === id);
+}
+export function setActiveProfile(id) { metaSet('active', id); }
+
+function profilePrefix(pid) { return APP_PREFIX + 'p.' + pid + '.'; }
+
+export function lsGet(key, fallback) {
+  return rawGet(profilePrefix(activeProfileId()) + key, fallback);
+}
 export function lsSet(key, value) {
-  try { localStorage.setItem(LS_PREFIX + key, JSON.stringify(value)); } catch {}
+  rawSet(profilePrefix(activeProfileId()) + key, value);
+}
+
+// súhrn pre kartu profilu (číta cudzí profil bez prepnutia)
+export function profileSummary(pid) {
+  const px = profilePrefix(pid);
+  const diamonds = rawGet(px + 'diamonds', 0);
+  const earned = rawGet(px + 'earned', diamonds);
+  let level = 1;
+  for (let i = 0; i < LEVELS.length; i++) if (earned >= LEVELS[i].need) level = i + 1;
+  return { diamonds, earned, level, emoji: LEVELS[level - 1].emoji };
+}
+
+// export/import postupu profilu (prenos medzi zariadeniami)
+export function exportProfileData() {
+  const px = profilePrefix(activeProfileId());
+  const data = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(px)) data[k.slice(px.length)] = localStorage.getItem(k);
+  }
+  const json = JSON.stringify({ v: 1, app: 'skolahrou', data });
+  return btoa(unescape(encodeURIComponent(json)));
+}
+export function importProfileData(code) {
+  let parsed;
+  try {
+    parsed = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
+  } catch { return false; }
+  if (!parsed || parsed.app !== 'skolahrou' || typeof parsed.data !== 'object') return false;
+  const px = profilePrefix(activeProfileId());
+  // zmaž staré dáta profilu a nahraj nové
+  const toDelete = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(px)) toDelete.push(k);
+  }
+  toDelete.forEach(k => localStorage.removeItem(k));
+  Object.entries(parsed.data).forEach(([k, v]) => {
+    try { localStorage.setItem(px + k, v); } catch {}
+  });
+  return true;
 }
 
 // --- diamanty + levely ---

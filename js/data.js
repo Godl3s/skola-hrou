@@ -629,6 +629,36 @@ export const SENTENCES_L2 = [
   { s: 'V noci svieti mesiac a hviezdy.', e: '🌙' },
 ];
 
+// ===== Kampaň – misie (postupne sa odomykajú) =====
+// need = koľko správnych odpovedí (na prvý pokus) v danej zručnosti
+// treba nazbierať OD spustenia misie. route = kam vedie tlačidlo Hrať.
+export const MISSIONS = [
+  { id: 'm01', emoji: '🍎', name: 'Prvé počítanie', desc: 'Spočítaj 5× správne, koľko je predmetov („Koľko ich je?")', skill: 'matika:count', need: 5, reward: 5, route: 'matika' },
+  { id: 'm02', emoji: '➕', name: 'Malý počtár', desc: 'Vyrieš 5 príkladov na sčítanie do 10', skill: 'matika:add10', need: 5, reward: 5, route: 'matika' },
+  { id: 'm03', emoji: '👂', name: 'Ušká na Š a Č', desc: 'Rozlíš 5 slov v hre Ušká (Š alebo Č)', skill: 'logopedia:sc', need: 5, reward: 6, route: 'logopedia' },
+  { id: 'm04', emoji: '🖼️', name: 'Slovný detektív', desc: 'Priraď 5 slov k obrázkom („Obrázok a slovo")', skill: 'citanie:match', need: 5, reward: 6, route: 'citanie' },
+  { id: 'm05', emoji: '🔔', name: 'Bystré ušká', desc: 'Spočítaj správne 4 skupiny zvukov', skill: 'zvuky', need: 4, reward: 6, route: 'zvuky' },
+  { id: 'm06', emoji: '➖', name: 'Odčítavač', desc: 'Vyrieš 5 príkladov na odčítanie do 10', skill: 'matika:sub10', need: 5, reward: 7, route: 'matika' },
+  { id: 'm07', emoji: '🕐', name: 'Hodinár učeň', desc: 'Prečítaj 4 celé hodiny na ciferníku', skill: 'hodiny:whole', need: 4, reward: 7, route: 'hodiny' },
+  { id: 'm08', emoji: '🔤', name: 'Lovkyňa písmen', desc: 'Nájdi 5× správne prvé písmenko', skill: 'citanie:first', need: 5, reward: 7, route: 'citanie' },
+  { id: 'm09', emoji: '🔊', name: 'Ušká na S a Š', desc: 'Rozlíš 5 slov (S alebo Š)', skill: 'logopedia:ss', need: 5, reward: 8, route: 'logopedia' },
+  { id: 'm10', emoji: '🧩', name: 'Skladateľka slov', desc: 'Poskladaj 4 slová z písmen', skill: 'citanie:build', need: 4, reward: 8, route: 'citanie' },
+  { id: 'm11', emoji: '🧩', name: 'Doplň číslo', desc: 'Vyrieš 5 príkladov „Doplň číslo" (5 + ▢ = 8)', skill: 'matika:missing', need: 5, reward: 8, route: 'matika' },
+  { id: 'm12', emoji: '🕧', name: 'Hodinárka', desc: 'Prečítaj 4 časy s pol hodinou', skill: 'hodiny:half', need: 4, reward: 9, route: 'hodiny' },
+  { id: 'm13', emoji: '🅰️', name: 'Dvojhlásky', desc: 'Doplň 5× správnu dvojhlásku (ia, ie, iu, ô)', skill: 'citanie:diphthong', need: 5, reward: 9, route: 'citanie' },
+  { id: 'm14', emoji: '⚖️', name: 'Porovnávačka', desc: 'Porovnaj 5× čísla (menej / rovnako / viac)', skill: 'matika:compare', need: 5, reward: 9, route: 'matika' },
+  { id: 'm15', emoji: '🔠', name: 'Hláskovačka', desc: 'Zopakuj 4 hláskované slová', skill: 'citanie:spell', need: 4, reward: 10, route: 'citanie' },
+  { id: 'm16', emoji: '🔊', name: 'Ušká na C a Č', desc: 'Rozlíš 5 slov (C alebo Č)', skill: 'logopedia:cc', need: 5, reward: 10, route: 'logopedia' },
+  { id: 'm17', emoji: '🧠', name: 'Počty z hlavy', desc: 'Vyrieš 5 pamäťových príkladov do 20', skill: 'matika:mem20', need: 5, reward: 11, route: 'matika' },
+  { id: 'm18', emoji: '📜', name: 'Čitateľka viet', desc: 'Prečítaj 4 vety nahlas', skill: 'citanie:sentence', need: 4, reward: 11, route: 'citanie' },
+  { id: 'm19', emoji: '🚀', name: 'Veľké počty', desc: 'Vyrieš 5 príkladov plus a mínus do 20', skill: 'matika:mix20', need: 5, reward: 12, route: 'matika' },
+  { id: 'm20', emoji: '🔊', name: 'Ušká na Z a Ž', desc: 'Rozlíš 5 slov (Z alebo Ž)', skill: 'logopedia:zz', need: 5, reward: 12, route: 'logopedia' },
+  { id: 'm21', emoji: '⏱️', name: 'Majsterka hodín', desc: 'Prečítaj 4 časy so štvrť a trištvrte', skill: 'hodiny:quarter', need: 4, reward: 13, route: 'hodiny' },
+  { id: 'm22', emoji: '🔗', name: 'Kombinátorka', desc: 'Vyrieš 5 kombinovaných príkladov (3 + 4 − 2)', skill: 'matika:chain', need: 5, reward: 14, route: 'matika' },
+  { id: 'm23', emoji: '🚀', name: 'Superpočtárka', desc: 'Vyrieš ďalších 8 príkladov do 20', skill: 'matika:mix20', need: 8, reward: 15, route: 'matika' },
+  { id: 'm24', emoji: '👑', name: 'Veľké finále', desc: 'Vyrieš 8 pamäťových príkladov do 20', skill: 'matika:mem20', need: 8, reward: 20, route: 'matika' },
+];
+
 // Pochvaly
 export const PRAISES = [
   'Výborne!', 'Super!', 'Si šikovná!', 'Paráda!', 'Skvelé!',

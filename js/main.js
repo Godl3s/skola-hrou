@@ -1,9 +1,13 @@
 // ===== Škola hrou – menu a navigácia =====
-import { el, updateBadge, newEpoch, levelInfo, applyCursive, getCursive, setCursive, confetti, toast } from './core.js';
+import {
+  el, updateBadge, newEpoch, levelInfo, applyCursive, getCursive, setCursive,
+  confetti, toast, activeProfile,
+} from './core.js';
 import { GAMES } from './games.js';
 import { canSpeak, hasSlovakVoice, ensureAudio, sfx, speak } from './audio.js';
 import { renderReport } from './report.js';
 import { renderParent } from './parent.js';
+import { renderProfiles } from './profile.js';
 
 const app = document.getElementById('app');
 const title = document.getElementById('page-title');
@@ -34,6 +38,14 @@ window.addEventListener('levelup', (e) => {
 function renderMenu() {
   title.textContent = 'Škola hrou';
   app.innerHTML = '';
+
+  // aktívny profil + prepnutie
+  const prof = activeProfile();
+  const profRow = el('div', 'settings-row profile-row');
+  const profBtn = el('button', 'btn btn-toggle', `${prof.emoji} ${prof.name} · vymeniť`);
+  profBtn.addEventListener('click', () => { ensureAudio(); sfx.click(); location.hash = '#/profil'; });
+  profRow.appendChild(profBtn);
+  app.appendChild(profRow);
 
   const info = levelInfo();
   const lvlBox = el('div', 'level-box');
@@ -125,6 +137,12 @@ function render() {
     renderParent(app);
     return;
   }
+  if (hash === 'profil') {
+    title.textContent = '👥 Profily';
+    app.innerHTML = '';
+    renderProfiles(app);
+    return;
+  }
   const game = GAMES.find(g => g.id === hash);
   if (!game) { renderMenu(); return; }
   title.textContent = `${game.emoji} ${game.name}`;
@@ -136,3 +154,10 @@ window.addEventListener('hashchange', render);
 applyCursive();
 updateBadge();
 render();
+
+// PWA: offline režim + inštalácia na plochu
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
