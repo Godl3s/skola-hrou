@@ -629,6 +629,95 @@ export const SENTENCES_L2 = [
   { s: 'V noci svieti mesiac a hviezdy.', e: '🌙' },
 ];
 
+// ===== Obchodík – peniaze (eurá) =====
+export const SHOP_ITEMS = [
+  { e: '🍎', name: 'jablko' }, { e: '🍌', name: 'banán' }, { e: '🥛', name: 'mlieko' },
+  { e: '🧸', name: 'macík' }, { e: '📖', name: 'kniha' }, { e: '⚽', name: 'lopta' },
+  { e: '🍫', name: 'čokoláda' }, { e: '🖍️', name: 'farbičky' }, { e: '🚗', name: 'autíčko' },
+  { e: '🍦', name: 'zmrzlina' }, { e: '🎈', name: 'balón' }, { e: '🧃', name: 'džúsik' },
+  { e: '🍭', name: 'lízanka' }, { e: '🪁', name: 'šarkan' }, { e: '🧩', name: 'puzzle' },
+];
+
+// ===== Tvary =====
+export const SHAPES = [
+  { id: 'kruh', name: 'kruh', color: '#3fa7d6' },
+  { id: 'stvorec', name: 'štvorec', color: '#58b24c' },
+  { id: 'trojuholnik', name: 'trojuholník', color: '#f09030' },
+  { id: 'obdlznik', name: 'obdĺžnik', color: '#7c5cd6' },
+  { id: 'oval', name: 'ovál', color: '#e0455a' },
+  { id: 'hviezda', name: 'hviezda', color: '#f5c542' },
+  { id: 'srdce', name: 'srdce', color: '#f48fb1' },
+  { id: 'kosostvorec', name: 'kosoštvorec', color: '#2b9fb5' },
+];
+
+// Predmety okolo nás a ich tvar
+export const SHAPE_REAL = [
+  { e: '⚽', name: 'lopta', shape: 'kruh' },
+  { e: '🍕', name: 'pizza', shape: 'trojuholnik' },
+  { e: '📺', name: 'televízor', shape: 'obdlznik' },
+  { e: '🎁', name: 'darček', shape: 'stvorec' },
+  { e: '🥚', name: 'vajíčko', shape: 'oval' },
+  { e: '⭐', name: 'hviezdička', shape: 'hviezda' },
+  { e: '❤️', name: 'srdiečko', shape: 'srdce' },
+  { e: '🪁', name: 'šarkan', shape: 'kosostvorec' },
+  { e: '🕐', name: 'hodiny', shape: 'kruh' },
+  { e: '📱', name: 'mobil', shape: 'obdlznik' },
+  { e: '🧀', name: 'syr', shape: 'trojuholnik' },
+  { e: '🎲', name: 'kocka', shape: 'stvorec' },
+  { e: '🍉', name: 'melón', shape: 'oval' },
+  { e: '🌕', name: 'mesiac', shape: 'kruh' },
+];
+
+// ===== Slabiky (vytlieskaj slovo) =====
+export const SYLLABLES = [
+  { w: 'pes', e: '🐶', s: ['PES'] },
+  { w: 'dom', e: '🏠', s: ['DOM'] },
+  { w: 'slon', e: '🐘', s: ['SLON'] },
+  { w: 'syr', e: '🧀', s: ['SYR'] },
+  { w: 'lev', e: '🦁', s: ['LEV'] },
+  { w: 'mama', e: '👩', s: ['MA', 'MA'] },
+  { w: 'ryba', e: '🐟', s: ['RY', 'BA'] },
+  { w: 'sova', e: '🦉', s: ['SO', 'VA'] },
+  { w: 'auto', e: '🚗', s: ['AU', 'TO'] },
+  { w: 'žaba', e: '🐸', s: ['ŽA', 'BA'] },
+  { w: 'lopta', e: '⚽', s: ['LOP', 'TA'] },
+  { w: 'kniha', e: '📖', s: ['KNI', 'HA'] },
+  { w: 'motýľ', e: '🦋', s: ['MO', 'TÝĽ'] },
+  { w: 'ceruzka', e: '✏️', s: ['CE', 'RUZ', 'KA'] },
+  { w: 'zmrzlina', e: '🍦', s: ['ZMRZ', 'LI', 'NA'] },
+  { w: 'paprika', e: '🫑', s: ['PA', 'PRI', 'KA'] },
+  { w: 'lietadlo', e: '✈️', s: ['LIE', 'TAD', 'LO'] },
+  { w: 'hodiny', e: '🕐', s: ['HO', 'DI', 'NY'] },
+  { w: 'topánky', e: '👟', s: ['TO', 'PÁN', 'KY'] },
+  { w: 'čokoláda', e: '🍫', s: ['ČO', 'KO', 'LÁ', 'DA'] },
+  { w: 'korytnačka', e: '🐢', s: ['KO', 'RYT', 'NAČ', 'KA'] },
+  { w: 'veverička', e: '🐿️', s: ['VE', 'VE', 'RIČ', 'KA'] },
+  { w: 'televízor', e: '📺', s: ['TE', 'LE', 'VÍ', 'ZOR'] },
+];
+
+// ===== Y alebo I (po tvrdých a mäkkých spoluhláskach) =====
+// Každé slovo má presne jedno y/i, po jednoznačne tvrdej/mäkkej spoluhláske.
+export const YDY_WORDS = [
+  { w: 'dyňa', e: '🍈', ans: 'y' },
+  { w: 'hory', e: '⛰️', ans: 'y' },
+  { w: 'nohy', e: '🦵', ans: 'y' },
+  { w: 'muchy', e: '🪰', ans: 'y' },
+  { w: 'schody', e: '🪜', ans: 'y' },
+  { w: 'topánky', e: '👟', ans: 'y' },
+  { w: 'chyba', e: '❌', ans: 'y' },
+  { w: 'vlaky', e: '🚂', ans: 'y' },
+  { w: 'buchty', e: '🥟', ans: 'y' },
+  { w: 'kohúty', e: '🐓', ans: 'y' },
+  { w: 'čiapka', e: '🧢', ans: 'i' },
+  { w: 'šiška', e: '🌰', ans: 'i' },
+  { w: 'žirafa', e: '🦒', ans: 'i' },
+  { w: 'čiara', e: '📏', ans: 'i' },
+  { w: 'ticho', e: '🤫', ans: 'i' },
+  { w: 'deti', e: '🧒', ans: 'i' },
+  { w: 'nič', e: '🚫', ans: 'i' },
+  { w: 'šije', e: '🧵', ans: 'i' },
+];
+
 // ===== Kampaň – misie (postupne sa odomykajú) =====
 // need = koľko správnych odpovedí (na prvý pokus) v danej zručnosti
 // treba nazbierať OD spustenia misie. route = kam vedie tlačidlo Hrať.
@@ -657,6 +746,14 @@ export const MISSIONS = [
   { id: 'm22', emoji: '🔗', name: 'Kombinátorka', desc: 'Vyrieš 5 kombinovaných príkladov (3 + 4 − 2)', skill: 'matika:chain', need: 5, reward: 14, route: 'matika' },
   { id: 'm23', emoji: '🚀', name: 'Superpočtárka', desc: 'Vyrieš ďalších 8 príkladov do 20', skill: 'matika:mix20', need: 8, reward: 15, route: 'matika' },
   { id: 'm24', emoji: '👑', name: 'Veľké finále', desc: 'Vyrieš 8 pamäťových príkladov do 20', skill: 'matika:mem20', need: 8, reward: 20, route: 'matika' },
+  { id: 'm25', emoji: '💶', name: 'Prvé nákupy', desc: 'Spočítaj 4× správne peniaze v Obchodíku', skill: 'peniaze:count', need: 4, reward: 12, route: 'peniaze' },
+  { id: 'm26', emoji: '🔷', name: 'Znalkyňa tvarov', desc: 'Pomenuj 5 tvarov správne', skill: 'tvary:name', need: 5, reward: 12, route: 'tvary' },
+  { id: 'm27', emoji: '👏', name: 'Tlieskačka', desc: 'Vytlieskaj 5 slov na slabiky', skill: 'citanie:syllable', need: 5, reward: 13, route: 'citanie' },
+  { id: 'm28', emoji: '🛒', name: 'Nákupčíčka', desc: 'Zaplať presne 4 nákupy v Obchodíku', skill: 'peniaze:pay', need: 4, reward: 14, route: 'peniaze' },
+  { id: 'm29', emoji: '🔺', name: 'Počítačka tvarov', desc: 'Spočítaj 4× tvary na obrázku', skill: 'tvary:count', need: 4, reward: 14, route: 'tvary' },
+  { id: 'm30', emoji: '⚖️', name: 'Párne či nepárne?', desc: 'Rozhodni 5× správne, či je číslo párne', skill: 'matika:parity', need: 5, reward: 15, route: 'matika' },
+  { id: 'm31', emoji: '✏️', name: 'Y alebo I', desc: 'Doplň 5× správne y/i do slova', skill: 'citanie:ydy', need: 5, reward: 16, route: 'citanie' },
+  { id: 'm32', emoji: '👑', name: 'Superfinále', desc: 'Vyber si 5× správne, čo si môžeš kúpiť', skill: 'peniaze:afford', need: 5, reward: 25, route: 'peniaze' },
 ];
 
 // Pochvaly

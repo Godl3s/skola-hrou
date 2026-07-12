@@ -11,117 +11,17 @@ import {
 import {
   SOUND_PAIRS, READING_WORDS, READING_WORDS_L2, BUILD_WORDS, PIXEL_TEMPLATES, FREE_COLORS,
   PRAISES, ENCOURAGE, SENTENCES, SENTENCES_L2, HOME_TIERS, COLLECTIBLES,
-  DIPHTHONGS, DIPHTHONG_OPTIONS, COUNT_EMOJI, SPELL_WORDS,
+  DIPHTHONGS, DIPHTHONG_OPTIONS, COUNT_EMOJI, SPELL_WORDS, SYLLABLES, YDY_WORDS,
 } from './data.js';
 import { recordResult, recordMistake } from './stats.js';
 import { hasSpeechRecognition, listenOnce, matchesWord, matchesSentence } from './speech.js';
 import { gameKampan } from './campaign.js';
-
-// ---------- spoločné pomôcky ----------
-function praiseNow() {
-  const p = sample(PRAISES);
-  speak(p, 1);
-  return p;
-}
-
-function levelScreen(container, introHtml, levels, onPick, extra) {
-  container.innerHTML = '';
-  if (introHtml) container.appendChild(el('p', 'subtitle', introHtml));
-  if (extra) container.appendChild(extra);
-  const list = el('div', 'level-list');
-  levels.forEach(lvl => {
-    const b = el('button', 'btn', `<span class="lvl-emoji">${lvl.emoji}</span> ${lvl.label}`);
-    b.addEventListener('click', () => { ensureAudio(); sfx.click(); onPick(lvl); });
-    list.appendChild(b);
-  });
-  container.appendChild(list);
-}
-
-const MASCOTS = ['🦊', '🐼', '🐵', '🐸', '🐷', '🐰', '🐻', '🐧'];
-
-function resultScreen(container, score, total, onAgain) {
-  let stars, bonus, msg;
-  const pct = score / total;
-  if (pct === 1) { stars = '⭐⭐⭐'; bonus = 5; msg = 'Fantastické! Všetko správne!'; }
-  else if (pct >= 0.8) { stars = '⭐⭐'; bonus = 3; msg = 'Výborne, skoro všetko!'; }
-  else if (pct >= 0.5) { stars = '⭐'; bonus = 1; msg = 'Dobrá práca!'; }
-  else { stars = '💪'; bonus = 0; msg = 'Trénuj ďalej, zlepšíš sa!'; }
-  if (bonus > 0) award(bonus);
-  sfx.win();
-  confetti();
-  speak(msg, 1);
-
-  container.innerHTML = '';
-  const panel = el('div', 'game-panel');
-  panel.appendChild(el('div', 'result-stars', stars));
-  panel.appendChild(el('div', 'result-score', `Správne: ${score} z ${total}`));
-
-  const mascot = el('div', 'mascot');
-  mascot.appendChild(el('div', 'mascot-face', sample(MASCOTS)));
-  mascot.appendChild(el('div', 'mascot-bubble', msg));
-  panel.appendChild(mascot);
-
-  if (bonus > 0) panel.appendChild(el('p', '', `Bonus: +${bonus} 💎`));
-  const row = el('div', 'stack');
-  const again = el('button', 'btn btn-primary btn-big', '🔁 Ešte raz');
-  again.addEventListener('click', onAgain);
-  const shop = el('button', 'btn btn-green btn-big', '🏡 Moja dedinka');
-  shop.addEventListener('click', () => { location.hash = '#/svet'; });
-  const home = el('button', 'btn btn-big', '🎮 Iná hra');
-  home.addEventListener('click', () => { location.hash = ''; });
-  row.append(again, shop, home);
-  panel.appendChild(row);
-  container.appendChild(panel);
-}
-
-function highlightWord(word, letter) {
-  const lower = letter.toLowerCase();
-  return word.split('').map(ch =>
-    ch.toLowerCase() === lower ? `<span class="hl">${ch}</span>` : ch
-  ).join('');
-}
-
-function ttsHintBanner() {
-  if (!canSpeak()) {
-    return el('div', 'hint-banner',
-      '🔇 Toto zariadenie nevie čítať nahlas. Slová sa zobrazia napísané – prečítajte ich dieťaťu vy.');
-  }
-  return null;
-}
-
-function cursiveToggle(onChange) {
-  const b = el('button', 'btn btn-toggle', '');
-  const paint = () => { b.innerHTML = getCursive() ? '✍️ Písané' : '🅰️ Tlačené'; };
-  paint();
-  b.addEventListener('click', () => {
-    ensureAudio(); sfx.click();
-    setCursive(!getCursive());
-    paint();
-    if (onChange) onChange();
-  });
-  return b;
-}
-
-// Vytvorí obsluhu odpovede s OPAKOVANÍM po chybe.
-// st = { firstTry, locked, tries }
-function makeState() { return { firstTry: true, locked: false, tries: 0 }; }
-
-const RETRY_MSGS = ['Skús to ešte raz! 💪', 'Ešte raz to skús! 🙂', 'Nevadí, skús znova! 💪', 'Skúsime znova? 😊'];
-function onWrongDefault(st, btn, reveal, mistake) {
-  st.firstTry = false;
-  st.tries++;
-  btn.classList.add('incorrect');
-  btn.disabled = true;
-  sfx.wrong();
-  toast(st.tries >= 2 ? 'Pozri, správna odpoveď svieti! 👉' : sample(RETRY_MSGS));
-  if (st.tries === 1 && mistake) recordMistake(mistake);
-  if (st.tries >= 2 && reveal) reveal();
-}
-
-// zapíše výsledok otázky do štatistík
-function trackResult(st, meta) {
-  recordResult({ ...meta, firstTry: st.firstTry });
-}
+import { gamePeniaze, gameTvary } from './games2.js';
+import {
+  praiseNow, levelScreen, resultScreen, highlightWord, ttsHintBanner,
+  cursiveToggle, makeState, onWrongDefault, trackResult,
+  armIdleHint, disarmIdleHint,
+} from './shared.js';
 
 // ---------- 1) LOGOPÉDIA ----------
 const gameLogopedia = {
@@ -211,6 +111,7 @@ const gameLogopedia = {
         panel.appendChild(row);
         container.appendChild(panel);
 
+        armIdleHint(ttsOk ? () => speak(item.w) : null, reveal);
         if (ttsOk) later(() => speak(item.w), 350);
       };
       next();
@@ -417,7 +318,7 @@ const gameZvuky = {
 const MATIKA_NAMES = {
   add10: 'Sčítanie do 10', sub10: 'Odčítanie do 10', mix20: 'Plus/mínus do 20',
   missing: 'Doplň číslo', compare: 'Porovnávanie', count: 'Počítanie predmetov',
-  mem20: 'Pamäťové do 20', chain: 'Kombinované počítanie',
+  mem20: 'Pamäťové do 20', chain: 'Kombinované počítanie', parity: 'Párne a nepárne',
 };
 function makeOptions(ans, max = 20) {
   const set = new Set([ans]);
@@ -449,11 +350,13 @@ const gameMatika = {
         { emoji: '🔗', label: 'Kombinované (3 + 4 − 2)', type: 'chain' },
         { emoji: '🧩', label: 'Doplň číslo (5 + ▢ = 8)', type: 'missing' },
         { emoji: '⚖️', label: 'Porovnaj čísla', type: 'compare' },
+        { emoji: '👯', label: 'Párne a nepárne', type: 'parity' },
       ],
       lvl => (lvl.type === 'compare' ? startCompare(lvl)
         : lvl.type === 'missing' ? startMissing(lvl)
         : lvl.type === 'count' ? startCount(lvl)
-        : lvl.type === 'chain' ? startChain(lvl) : start(lvl))
+        : lvl.type === 'chain' ? startChain(lvl)
+        : lvl.type === 'parity' ? startParity(lvl) : start(lvl))
     );
 
     const genProblem = (type) => {
@@ -550,6 +453,7 @@ const gameMatika = {
         panel.appendChild(grid);
         container.appendChild(panel);
 
+        armIdleHint(() => speakMath(p.a, p.b, p.op), reveal);
         later(() => speakMath(p.a, p.b, p.op), 350);
       };
       next();
@@ -621,6 +525,70 @@ const gameMatika = {
         container.appendChild(panel);
 
         later(() => say(p), 350);
+      };
+      next();
+    };
+
+    const startParity = (lvl) => {
+      const TOTAL = 10;
+      const dots = progressDots(TOTAL);
+      let idx = 0, score = 0;
+
+      const next = () => {
+        if (idx >= TOTAL) { resultScreen(container, score, TOTAL, () => startParity(lvl)); return; }
+        dots.set(idx, 'current');
+        const n = randInt(1, 20);
+        const isEven = n % 2 === 0;
+        const st = makeState();
+
+        container.innerHTML = '';
+        container.appendChild(dots.node);
+        const panel = el('div', 'game-panel');
+        panel.appendChild(el('div', 'math-expr', String(n)));
+        // vizuál: kocky vo dvojiciach – ak jedna ostane sama, číslo je nepárne
+        const pairs = Math.floor(n / 2);
+        const rest = n % 2;
+        panel.appendChild(el('div', 'math-blocks',
+          '🟩🟩 '.repeat(pairs) + (rest ? '🟨' : '')));
+        panel.appendChild(el('p', '',
+          '<small>Rozdeľ kocky do dvojíc. Ostane jedna sama? Potom je číslo nepárne.</small>'));
+
+        const grid = el('div', 'answers-grid');
+        const btnFor = {};
+        const correct = isEven ? 'párne' : 'nepárne';
+        const reveal = () => { if (btnFor[correct]) btnFor[correct].classList.add('hint'); };
+        ['párne', 'nepárne'].forEach(opt => {
+          const b = el('button', 'btn btn-big', opt.toUpperCase());
+          btnFor[opt] = b;
+          b.addEventListener('click', () => {
+            if (st.locked) return;
+            ensureAudio();
+            if (opt === correct) {
+              st.locked = true;
+              b.classList.add('correct');
+              b.classList.remove('hint');
+              sfx.correct();
+              speak(`Áno, ${numberToSlovak(n)} je ${correct} číslo.`, 0.95);
+              if (st.firstTry) { score++; award(1); confetti(6); toast(`${praiseNow()} +1 💎`); }
+              else toast(praiseNow());
+              trackResult(st, { game: 'matika', gameName: 'Počítanie', skill: 'matika:parity', skillName: MATIKA_NAMES.parity });
+              dots.set(idx, st.firstTry ? 'ok' : 'bad');
+              idx++;
+              later(next, 1600);
+            } else {
+              onWrongDefault(st, b, reveal, {
+                skill: 'matika:parity', skillName: MATIKA_NAMES.parity,
+                label: String(n), chose: opt, correct,
+              });
+            }
+          });
+          grid.appendChild(b);
+        });
+        panel.appendChild(grid);
+        container.appendChild(panel);
+
+        armIdleHint(() => speak('Rozdeľ kocky po dvoch. Ak jedna ostane sama, číslo je nepárne.', 0.9), reveal);
+        later(() => speak(`Je číslo ${numberToSlovak(n)} párne alebo nepárne?`, 0.9), 350);
       };
       next();
     };
@@ -836,7 +804,9 @@ const gameCitanie = {
         { emoji: '🔤', label: 'Prvé písmenko', mode: 'first' },
         { emoji: '🧩', label: 'Poskladaj slovo', mode: 'build' },
         { emoji: '🔠', label: 'Hláskovanie', mode: 'spell' },
+        { emoji: '👏', label: 'Slabiky (vytlieskaj)', mode: 'syllable' },
         { emoji: '🅰️', label: 'Dvojhlásky ia ie iu ô', mode: 'diphthong' },
+        { emoji: '✏️', label: 'Y alebo I', mode: 'ydy' },
         { emoji: '📜', label: 'Čítaj vetu', mode: 'sentence' },
       ];
       if (hasSpeechRecognition()) {
@@ -847,7 +817,9 @@ const gameCitanie = {
         else if (lvl.mode === 'first') startFirst();
         else if (lvl.mode === 'build') startBuild();
         else if (lvl.mode === 'spell') startSpell();
+        else if (lvl.mode === 'syllable') startSyllable();
         else if (lvl.mode === 'diphthong') startDiphthong();
+        else if (lvl.mode === 'ydy') startYdy();
         else if (lvl.mode === 'read') startRead();
         else startSentence();
       }, cursiveToggle());
@@ -915,6 +887,8 @@ const gameCitanie = {
         });
         panel.appendChild(stack);
         container.appendChild(panel);
+
+        armIdleHint(() => speak(`Hľadaj slovo ${item.w}.`, 0.9), reveal);
       };
       next();
     };
@@ -1160,6 +1134,142 @@ const gameCitanie = {
         panel.appendChild(row);
         panel.appendChild(status);
         container.appendChild(panel);
+      };
+      next();
+    };
+
+    // — slabiky: koľko ich má slovo (vytlieskaj) —
+    const startSyllable = () => {
+      const TOTAL = 8;
+      const words = pickFresh(SYLLABLES, TOTAL, 'read-syll', x => x.w);
+      const dots = progressDots(TOTAL);
+      let idx = 0, score = 0;
+
+      const next = () => {
+        if (idx >= TOTAL) { resultScreen(container, score, TOTAL, startSyllable); return; }
+        dots.set(idx, 'current');
+        const item = words[idx];
+        const correct = item.s.length;
+        const st = makeState();
+
+        container.innerHTML = '';
+        container.appendChild(dots.node);
+        const panel = el('div', 'game-panel');
+        panel.appendChild(el('div', 'big-emoji', item.e));
+        const wd = el('div', 'word-display read-word', item.w.toUpperCase());
+        panel.appendChild(wd);
+        panel.appendChild(el('p', '', 'Vytlieskaj slovo! 👏 Koľko má slabík?'));
+
+        if (canSpeak()) {
+          const hear = el('button', 'btn btn-blue', '🔊 Vypočuj slovo');
+          hear.addEventListener('click', () => { ensureAudio(); speak(item.w, 0.75); });
+          panel.appendChild(hear);
+        }
+
+        const grid = el('div', 'answers-grid');
+        const btnFor = {};
+        const reveal = () => { if (btnFor[correct]) btnFor[correct].classList.add('hint'); };
+        [1, 2, 3, 4].forEach(nOpt => {
+          const b = el('button', 'btn', String(nOpt));
+          btnFor[nOpt] = b;
+          b.addEventListener('click', () => {
+            if (st.locked) return;
+            ensureAudio();
+            if (nOpt === correct) {
+              st.locked = true;
+              b.classList.add('correct');
+              b.classList.remove('hint');
+              wd.innerHTML = item.s.join('<span class="hl">-</span>');
+              sfx.correct();
+              speak(item.s.join(', '), 0.7);
+              if (st.firstTry) { score++; award(1); confetti(6); toast(`${sample(PRAISES)} +1 💎`); }
+              else toast(sample(PRAISES));
+              trackResult(st, { game: 'citanie', gameName: 'Čítanie', skill: 'citanie:syllable', skillName: 'Slabiky' });
+              dots.set(idx, st.firstTry ? 'ok' : 'bad');
+              idx++;
+              later(next, 1900);
+            } else {
+              onWrongDefault(st, b, reveal, {
+                skill: 'citanie:syllable', skillName: 'Slabiky',
+                label: item.w, chose: nOpt, correct,
+              });
+            }
+          });
+          grid.appendChild(b);
+        });
+        panel.appendChild(grid);
+        container.appendChild(panel);
+
+        armIdleHint(() => speak(item.s.join(', '), 0.65), reveal);
+        if (canSpeak()) later(() => speak(item.w, 0.75), 350);
+      };
+      next();
+    };
+
+    // — Y alebo I (tvrdé a mäkké spoluhlásky) —
+    const startYdy = () => {
+      const TOTAL = 8;
+      const words = pickFresh(YDY_WORDS, TOTAL, 'read-ydy', x => x.w);
+      const dots = progressDots(TOTAL);
+      let idx = 0, score = 0;
+
+      const next = () => {
+        if (idx >= TOTAL) { resultScreen(container, score, TOTAL, startYdy); return; }
+        dots.set(idx, 'current');
+        const item = words[idx];
+        const blank = item.w.replace(/[yi]/, '▢').toUpperCase();
+        const st = makeState();
+
+        container.innerHTML = '';
+        container.appendChild(dots.node);
+        const panel = el('div', 'game-panel');
+        panel.appendChild(el('div', 'big-emoji', item.e));
+        const wd = el('div', 'word-display read-word', blank);
+        panel.appendChild(wd);
+
+        if (canSpeak()) {
+          const hear = el('button', 'btn btn-blue', '🔊 Vypočuj slovo');
+          hear.addEventListener('click', () => { ensureAudio(); speak(item.w); });
+          panel.appendChild(hear);
+        }
+        panel.appendChild(el('p', '', 'Aké písmenko patrí do slova – <b>Y</b> alebo <b>I</b>?'));
+
+        const row = el('div', 'row');
+        const btnFor = {};
+        const reveal = () => { if (btnFor[item.ans]) btnFor[item.ans].classList.add('hint'); };
+        ['y', 'i'].forEach(opt => {
+          const b = el('button', 'btn btn-huge', opt.toUpperCase());
+          btnFor[opt] = b;
+          b.addEventListener('click', () => {
+            if (st.locked) return;
+            ensureAudio();
+            if (opt === item.ans) {
+              st.locked = true;
+              b.classList.add('correct');
+              b.classList.remove('hint');
+              wd.innerHTML = highlightWord(item.w.toUpperCase(), item.ans);
+              sfx.correct();
+              speak(item.w);
+              if (st.firstTry) { score++; award(1); confetti(6); toast(`${sample(PRAISES)} +1 💎`); }
+              else toast(sample(PRAISES));
+              trackResult(st, { game: 'citanie', gameName: 'Čítanie', skill: 'citanie:ydy', skillName: 'Y alebo I' });
+              dots.set(idx, st.firstTry ? 'ok' : 'bad');
+              idx++;
+              later(next, 1800);
+            } else {
+              onWrongDefault(st, b, reveal, {
+                skill: 'citanie:ydy', skillName: 'Y alebo I',
+                label: item.w, chose: opt, correct: item.ans,
+              });
+            }
+          });
+          row.appendChild(b);
+        });
+        panel.appendChild(row);
+        container.appendChild(panel);
+
+        armIdleHint(() => speak(item.w, 0.8), reveal);
+        if (canSpeak()) later(() => speak(item.w), 350);
       };
       next();
     };
@@ -1521,6 +1631,7 @@ const gameHodiny = {
         panel.appendChild(grid);
         container.appendChild(panel);
 
+        armIdleHint(() => speak(timeToSlovak(h, m)), reveal);
         if (canSpeak()) later(() => speak(timeToSlovak(h, m)), 350);
       };
       next();
@@ -1895,6 +2006,8 @@ export const GAMES = [
   gameZvuky,
   gameMatika,
   gameHodiny,
+  gamePeniaze,
+  gameTvary,
   gameCitanie,
   gameMalovanka,
   gameSvet,
