@@ -5,6 +5,7 @@ import {
 import { speak, canSpeak, sfx, ensureAudio } from './audio.js';
 import { PRAISES } from './data.js';
 import { recordResult, recordMistake } from './stats.js';
+import { reportAnswer } from './adaptive.js';
 
 export function praiseNow() {
   const p = sample(PRAISES);
@@ -107,10 +108,12 @@ export function onWrongDefault(st, btn, reveal, mistake) {
   if (st.tries >= 2 && reveal) reveal();
 }
 
-// zapíše výsledok otázky do štatistík (a zruší čakajúce nápovedy)
+// zapíše výsledok otázky do štatistík (a zruší čakajúce nápovedy);
+// zároveň kŕmi adaptívnu náročnosť
 export function trackResult(st, meta) {
   disarmIdleHint();
   recordResult({ ...meta, firstTry: st.firstTry });
+  reportAnswer(meta.skill, st.firstTry);
 }
 
 // ===== Číselná klávesnica (0–99) pre hadíka, pyramídy… =====

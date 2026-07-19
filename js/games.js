@@ -18,6 +18,8 @@ import { hasSpeechRecognition, listenOnce, matchesWord, matchesSentence } from '
 import { gameKampan } from './campaign.js';
 import { gamePeniaze, gameTvary } from './games2.js';
 import { gameHlavolamy, gameVelka } from './games3.js';
+import { gameAnglictina } from './games4.js';
+import { diffLevel } from './adaptive.js';
 import {
   praiseNow, levelScreen, resultScreen, highlightWord, ttsHintBanner,
   cursiveToggle, makeState, onWrongDefault, trackResult,
@@ -376,7 +378,21 @@ const gameMatika = {
         return { a, b, op: '−', ans: a - b, max: 10 };
       }
       if (type === 'mem20') {
-        // pamäťové – väčšinou s prechodom cez desiatku
+        const d = diffLevel('matika:mem20');
+        if (d === 1) {
+          // ľahšie: do 20 BEZ prechodu cez desiatku
+          if (Math.random() < 0.5) {
+            const u = randInt(1, 8);
+            const a = 10 + u;
+            const b = randInt(1, 9 - u);
+            return { a, b, op: '+', ans: a + b, max: 20 };
+          }
+          const u = randInt(2, 9);
+          const a = 10 + u;
+          const b = randInt(1, u - 1);
+          return { a, b, op: '−', ans: a - b, max: 20 };
+        }
+        // ťažšie: s prechodom cez desiatku
         if (Math.random() < 0.5) {
           const a = randInt(4, 9);
           const b = randInt(Math.max(2, 11 - a), 9);
@@ -916,6 +932,7 @@ const gameCitanie = {
         { emoji: '👏', label: 'Slabiky (vytlieskaj)', mode: 'syllable' },
         { emoji: '🅰️', label: 'Dvojhlásky ia ie iu ô', mode: 'diphthong' },
         { emoji: '✏️', label: 'Y alebo I', mode: 'ydy' },
+        { emoji: '🔡', label: 'Abeceda', mode: 'abeceda' },
         { emoji: '📜', label: 'Čítaj vetu', mode: 'sentence' },
       ];
       if (hasSpeechRecognition()) {
@@ -929,9 +946,78 @@ const gameCitanie = {
         else if (lvl.mode === 'syllable') startSyllable();
         else if (lvl.mode === 'diphthong') startDiphthong();
         else if (lvl.mode === 'ydy') startYdy();
+        else if (lvl.mode === 'abeceda') startAbeceda();
         else if (lvl.mode === 'read') startRead();
         else startSentence();
       }, cursiveToggle());
+    };
+
+    // — abeceda: ktoré písmeno nasleduje / predchádza —
+    const startAbeceda = () => {
+      const TOTAL = 8;
+      const ABC = 'ABCDEFGHIJKLMNOPRSTUVZ'.split(''); // zjednodušená abeceda
+      const dots = progressDots(TOTAL);
+      const skill = 'citanie:abeceda';
+      const skillName = 'Abeceda';
+      let idx = 0, score = 0;
+
+      const next = () => {
+        if (idx >= TOTAL) { resultScreen(container, score, TOTAL, startAbeceda); return; }
+        dots.set(idx, 'current');
+        const i = randInt(1, ABC.length - 2);
+        const after = Math.random() < 0.5;
+        const base = ABC[i];
+        const correct = after ? ABC[i + 1] : ABC[i - 1];
+        const distractors = shuffle(ABC.filter(l => l !== correct && l !== base)).slice(0, 3);
+        const options = shuffle([correct, ...distractors]);
+        const st = makeState();
+
+        container.innerHTML = '';
+        container.appendChild(dots.node);
+        const panel = el('div', 'game-panel');
+        panel.appendChild(el('div', 'word-display', `… ${after ? base + ' → ▢' : '▢ → ' + base} …`));
+        panel.appendChild(el('p', '', after
+          ? `Ktoré písmeno je v abecede hneď <b>po ${base}</b>?`
+          : `Ktoré písmeno je v abecede hneď <b>pred ${base}</b>?`));
+
+        const say = () => speak(after
+          ? `Ktoré písmeno nasleduje v abecede po ${base}?`
+          : `Ktoré písmeno je v abecede pred ${base}?`, 0.85);
+
+        const grid = el('div', 'answers-grid');
+        const btnFor = {};
+        const reveal = () => { if (btnFor[correct]) btnFor[correct].classList.add('hint'); };
+        options.forEach(letter => {
+          const b = el('button', 'btn', letter);
+          btnFor[letter] = b;
+          b.addEventListener('click', () => {
+            if (st.locked) return;
+            ensureAudio();
+            if (letter === correct) {
+              st.locked = true;
+              b.classList.add('correct');
+              b.classList.remove('hint');
+              sfx.correct();
+              speak(after ? `Áno, po ${base} nasleduje ${correct}.` : `Áno, pred ${base} je ${correct}.`, 0.9);
+              if (st.firstTry) { score++; award(1); confetti(6); toast(`${sample(PRAISES)} +1 💎`); }
+              else toast(sample(PRAISES));
+              trackResult(st, { game: 'citanie', gameName: 'Čítanie', skill, skillName });
+              dots.set(idx, st.firstTry ? 'ok' : 'bad');
+              idx++;
+              later(next, 1700);
+            } else {
+              onWrongDefault(st, b, reveal, { skill, skillName, label: `${after ? 'po' : 'pred'} ${base}`, chose: letter, correct });
+            }
+          });
+          grid.appendChild(b);
+        });
+        panel.appendChild(grid);
+        container.appendChild(panel);
+
+        armIdleHint(say, reveal);
+        later(say, 350);
+      };
+      next();
     };
 
     // sady sa rozširujú od Levelu 3 (Staviteľ) o ťažšie slová/vety
@@ -1979,49 +2065,160 @@ const gameMalovanka = {
 };
 
 // ---------- 6) MÔJ SVET (stavanie z kociek) ----------
+// ---------- DEDINKA 2.0: živá dedinka so starostlivosťou ----------
+// Obyvatelia (zvieratká a postavičky) chodia po dedinke a treba ich
+// kŕmiť. Väčší dom = viac miest pre kamarátov. Keď sú všetci najedení,
+// dedinka daruje denný poklad. Krmivo sa kupuje za 💎 z učenia.
+const HOME_SLOTS = [2, 4, 6, 8, 10, 12];
+const FEED_FRESH_H = 8;    // do 8 h po nakŕmení = šťastný
+const FEED_HUNGRY_H = 24;  // do 24 h = hladný, potom smutný
+
+const DECO_SPOTS = [
+  { left: '5%', bottom: '8%' }, { left: '84%', bottom: '10%' },
+  { left: '14%', bottom: '44%' }, { left: '74%', bottom: '46%' },
+  { left: '4%', bottom: '66%' }, { left: '87%', bottom: '68%' },
+  { left: '30%', bottom: '62%' }, { left: '58%', bottom: '64%' },
+  { left: '22%', bottom: '8%' }, { left: '68%', bottom: '9%' },
+  { left: '44%', bottom: '70%' }, { left: '9%', bottom: '28%' },
+  { left: '80%', bottom: '30%' }, { left: '48%', bottom: '9%' },
+];
+
 const gameSvet = {
   id: 'svet',
   name: 'Moja dedinka',
   emoji: '🏡',
-  desc: 'Kupuj a vylepšuj',
+  desc: 'Staraj sa o kamarátov',
   render(container) {
-    const CATS = [
-      { id: 'rastliny', title: '🌳 Príroda' },
-      { id: 'zvierata', title: '🐾 Zvieratká' },
-      { id: 'postavicky', title: '🎮 Postavičky' },
-      { id: 'zabava', title: '🎡 Zábava' },
-    ];
+    // migrácia zo starej zbierky (collect → obyvatelia + ozdoby)
+    if (lsGet('villagers', null) === null) {
+      const old = lsGet('collect', []);
+      const vill = [], deco = [];
+      old.forEach(id => {
+        const it = COLLECTIBLES.find(c => c.id === id);
+        if (!it) return;
+        if (it.cat === 'zvierata' || it.cat === 'postavicky') vill.push({ id, fed: Date.now() });
+        else deco.push(id);
+      });
+      lsSet('villagers', vill);
+      lsSet('decos2', deco);
+      if (lsGet('food', null) === null) lsSet('food', 3); // štartovacie krmivo
+    }
+
+    const hungerOf = (v) => {
+      const h = (Date.now() - (v.fed || 0)) / 3600000;
+      if (h < FEED_FRESH_H) return 'happy';
+      if (h < FEED_HUNGRY_H) return 'hungry';
+      return 'sad';
+    };
+    const todayStr = () => new Date().toISOString().slice(0, 10);
 
     const draw = () => {
       container.innerHTML = '';
       const tierIndex = Math.min(lsGet('homeTier', 0), HOME_TIERS.length - 1);
-      const owned = lsGet('collect', []);
-      const ownedSet = new Set(owned);
-      const info = levelInfo();
-      const diamonds = getDiamonds();
-
-      // level pruh
-      const lvlBox = el('div', 'level-box');
-      lvlBox.appendChild(el('div', '', `${info.emoji} <b>Level ${info.level} – ${info.title}</b>`));
-      lvlBox.appendChild(el('div', 'muted',
-        `Máš <b>${diamonds} 💎</b> · v dedinke máš <b>${owned.length}</b> z ${COLLECTIBLES.length} vecí`));
-      container.appendChild(lvlBox);
+      const slots = HOME_SLOTS[tierIndex] || 12;
+      const villagers = lsGet('villagers', []);
+      const decos = lsGet('decos2', []);
+      const food = lsGet('food', 0);
+      const fedCount = villagers.filter(v => hungerOf(v) === 'happy').length;
 
       container.appendChild(el('p', 'subtitle',
-        'Vylepšuj domček a dopĺňaj si dedinku za 💎 🏡'));
+        villagers.length
+          ? 'Ťukni na kamaráta a nakŕm ho! 💚'
+          : 'Adoptuj si kamarátov dole v obchode! 🐾'));
 
-      // scéna – dedinka (dom + všetko nazbierané)
-      const scene = el('div', 'scene');
-      const village = el('div', 'village');
-      village.appendChild(el('span', 'v-home', HOME_TIERS[tierIndex].emoji));
-      owned.forEach(id => {
+      // ——— živá scéna ———
+      const scene = el('div', 'v2-scene');
+      scene.appendChild(el('span', 'v2-home', HOME_TIERS[tierIndex].emoji));
+      decos.forEach((id, i) => {
         const it = COLLECTIBLES.find(c => c.id === id);
-        if (it) village.appendChild(el('span', 'v-item', it.emoji));
+        if (!it) return;
+        const spot = DECO_SPOTS[i % DECO_SPOTS.length];
+        const s = el('span', 'v2-deco', it.emoji);
+        s.style.left = spot.left;
+        s.style.bottom = spot.bottom;
+        scene.appendChild(s);
       });
-      scene.appendChild(village);
+      villagers.forEach((v, i) => {
+        const it = COLLECTIBLES.find(c => c.id === v.id);
+        if (!it) return;
+        const state = hungerOf(v);
+        const w = el('button', `v2-walker ${state}`);
+        if (state !== 'happy') {
+          w.appendChild(el('span', 'v2-bubble', state === 'hungry' ? '🍽️' : '💔'));
+        }
+        w.appendChild(el('span', 'v2-emoji', it.emoji));
+        w.style.left = `${6 + (i * 83) % 68}%`;
+        w.style.setProperty('--dist', `${30 + (i * 37) % 60}px`);
+        w.style.setProperty('--dur', `${7 + (i * 3) % 8}s`);
+        w.title = it.name;
+        w.addEventListener('click', () => {
+          ensureAudio();
+          if (hungerOf(v) === 'happy') {
+            sfx.click();
+            toast(`${it.name} má plné bruško a teší sa! 💚`);
+            return;
+          }
+          const f = lsGet('food', 0);
+          if (f <= 0) { sfx.wrong(); toast('Nemáš krmivo! Kúp ho dole 🥕'); return; }
+          lsSet('food', f - 1);
+          const arr = lsGet('villagers', []);
+          const me = arr.find(x => x.id === v.id);
+          if (me) me.fed = Date.now();
+          lsSet('villagers', arr);
+          sfx.correct();
+          confetti(6);
+          toast(`Mňam! ${it.name} má plné bruško. ❤️`);
+          speak('Mňam, mňam! Ďakujem!', 1);
+          draw();
+        });
+        scene.appendChild(w);
+      });
       container.appendChild(scene);
 
-      // — domov: vylepšovanie —
+      // ——— stav dedinky ———
+      const bar = el('div', 'v2-status');
+      bar.appendChild(el('span', '', `🥕 Krmivo: <b>${food}</b>`));
+      bar.appendChild(el('span', '', `💚 Najedení: <b>${fedCount}/${villagers.length}</b>`));
+      bar.appendChild(el('span', '', `🏠 Miesta: <b>${villagers.length}/${slots}</b>`));
+      container.appendChild(bar);
+
+      // ——— denný poklad za starostlivosť ———
+      const claimed = lsGet('villageBonusDay', '') === todayStr();
+      if (villagers.length >= 3 && fedCount === villagers.length && !claimed) {
+        const chest = el('button', 'btn btn-primary btn-big', '🎁 Všetci najedení! Otvor denný poklad (+5 💎)');
+        chest.addEventListener('click', () => {
+          ensureAudio();
+          lsSet('villageBonusDay', todayStr());
+          award(5);
+          sfx.win(); confetti(20);
+          toast('Denný poklad! +5 💎 🎉', 2600);
+          speak('Denný poklad! Kamaráti ti ďakujú!', 1);
+          draw();
+        });
+        container.appendChild(chest);
+      } else if (claimed) {
+        container.appendChild(el('p', 'muted center-note', '🎁 Denný poklad si dnes už našla – príď zajtra!'));
+      } else if (villagers.length > 0) {
+        container.appendChild(el('p', 'muted center-note',
+          villagers.length < 3
+            ? '🎁 Denný poklad dostaneš, keď sa budeš starať aspoň o 3 kamarátov.'
+            : '🎁 Nakŕm všetkých kamarátov a dedinka ti daruje denný poklad!'));
+      }
+
+      // ——— krmivo ———
+      const foodBtn = el('button', 'btn btn-green btn-big', '🥕 Kúpiť krmivo ×5 (3 💎)');
+      foodBtn.addEventListener('click', () => {
+        ensureAudio();
+        if (spend(3)) {
+          lsSet('food', lsGet('food', 0) + 5);
+          sfx.place();
+          toast('+5 🥕 krmiva!');
+          draw();
+        } else { sfx.wrong(); toast(`Ešte ti chýba ${3 - getDiamonds()} 💎`); }
+      });
+      container.appendChild(foodBtn);
+
+      // ——— domov = viac miest pre kamarátov ———
       container.appendChild(el('h3', 'shop-title', '🏗️ Tvoj domov'));
       const homeShop = el('div', 'shop-list');
       const cur = HOME_TIERS[tierIndex];
@@ -2029,7 +2226,7 @@ const gameSvet = {
       curRow.appendChild(el('span', 'shop-emoji', cur.emoji));
       const ci = el('div', 'shop-info');
       ci.appendChild(el('div', 'shop-name', cur.name));
-      ci.appendChild(el('div', 'shop-cost', 'tu teraz bývaš'));
+      ci.appendChild(el('div', 'shop-cost', `miesta pre ${slots} kamarátov`));
       curRow.appendChild(ci);
       curRow.appendChild(el('span', 'shop-owned', '✅'));
       homeShop.appendChild(curRow);
@@ -2040,7 +2237,8 @@ const gameSvet = {
         row.appendChild(el('span', 'shop-emoji', nextTier.emoji));
         const inf = el('div', 'shop-info');
         inf.appendChild(el('div', 'shop-name', `Vylepšiť na: ${nextTier.name}`));
-        inf.appendChild(el('div', 'shop-cost', `${nextTier.cost} 💎`));
+        inf.appendChild(el('div', 'shop-cost',
+          `${nextTier.cost} 💎 · miesta pre ${HOME_SLOTS[tierIndex + 1]} kamarátov`));
         row.appendChild(inf);
         const btn = el('button', 'btn btn-green', 'Vylepšiť');
         btn.addEventListener('click', () => {
@@ -2048,57 +2246,91 @@ const gameSvet = {
           if (spend(nextTier.cost)) {
             lsSet('homeTier', tierIndex + 1);
             sfx.win(); confetti(16);
-            toast(`Nový domov: ${nextTier.name}! 🎉`, 2400);
+            toast(`Nový domov: ${nextTier.name}! Viac miesta pre kamarátov! 🎉`, 2600);
             speak(nextTier.name, 1);
             draw();
-          } else { sfx.wrong(); toast(`Ešte ti chýba ${nextTier.cost - diamonds} 💎`); }
+          } else { sfx.wrong(); toast(`Ešte ti chýba ${nextTier.cost - getDiamonds()} 💎`); }
         });
         row.appendChild(btn);
         homeShop.appendChild(row);
-      } else {
-        const done = el('div', 'shop-item');
-        done.appendChild(el('span', 'shop-emoji', '👑'));
-        const inf = el('div', 'shop-info');
-        inf.appendChild(el('div', 'shop-name', 'Máš najlepší domov!'));
-        done.appendChild(inf);
-        homeShop.appendChild(done);
       }
       container.appendChild(homeShop);
 
-      // — zbierka: dokupovanie donekonečna —
-      CATS.forEach(cat => {
-        const items = COLLECTIBLES.filter(c => c.cat === cat.id);
-        if (!items.length) return;
-        const haveN = items.filter(c => ownedSet.has(c.id)).length;
-        container.appendChild(el('h3', 'shop-title', `${cat.title} <span class="muted">(${haveN}/${items.length})</span>`));
-        const list = el('div', 'shop-list');
-        items.forEach(it => {
-          const row = el('div', 'shop-item');
-          row.appendChild(el('span', 'shop-emoji', it.emoji));
-          const inf = el('div', 'shop-info');
-          inf.appendChild(el('div', 'shop-name', it.name));
-          inf.appendChild(el('div', 'shop-cost', `${it.cost} 💎`));
-          row.appendChild(inf);
-          if (ownedSet.has(it.id)) {
-            row.appendChild(el('span', 'shop-owned', '✔️ máš'));
-          } else {
-            const btn = el('button', 'btn btn-green', 'Kúpiť');
-            btn.addEventListener('click', () => {
-              ensureAudio();
-              if (spend(it.cost)) {
-                const arr = lsGet('collect', []); arr.push(it.id); lsSet('collect', arr);
-                sfx.place(); confetti(10);
-                toast(`Pribudlo: ${it.name}! 🎉`, 1800);
-                speak(it.name, 1);
-                draw();
-              } else { sfx.wrong(); toast(`Ešte ti chýba ${it.cost - getDiamonds()} 💎`); }
-            });
-            row.appendChild(btn);
-          }
-          list.appendChild(row);
-        });
-        container.appendChild(list);
+      // ——— adopcia kamarátov ———
+      const pool = COLLECTIBLES.filter(c => c.cat === 'zvierata' || c.cat === 'postavicky');
+      const ownedIds = new Set(villagers.map(v => v.id));
+      container.appendChild(el('h3', 'shop-title',
+        `🐾 Adoptuj kamaráta <span class="muted">(${ownedIds.size}/${pool.length})</span>`));
+      const full = villagers.length >= slots;
+      if (full) {
+        container.appendChild(el('div', 'hint-banner',
+          '🔒 Domov je plný! Vylepši domček vyššie, aby sa zmestili ďalší kamaráti.'));
+      }
+      const adoptList = el('div', 'shop-list');
+      pool.forEach(it => {
+        const row = el('div', 'shop-item');
+        row.appendChild(el('span', 'shop-emoji', it.emoji));
+        const inf = el('div', 'shop-info');
+        inf.appendChild(el('div', 'shop-name', it.name));
+        inf.appendChild(el('div', 'shop-cost', `${it.cost} 💎`));
+        row.appendChild(inf);
+        if (ownedIds.has(it.id)) {
+          row.appendChild(el('span', 'shop-owned', '✔️ býva tu'));
+        } else if (full) {
+          row.appendChild(el('span', 'shop-locked', '🔒'));
+        } else {
+          const btn = el('button', 'btn btn-green', 'Adoptovať');
+          btn.addEventListener('click', () => {
+            ensureAudio();
+            if (spend(it.cost)) {
+              const arr = lsGet('villagers', []);
+              arr.push({ id: it.id, fed: Date.now() });
+              lsSet('villagers', arr);
+              sfx.win(); confetti(12);
+              toast(`${it.name} sa prisťahoval! Staraj sa oňho. 🎉`, 2400);
+              speak(`${it.name} je tvoj nový kamarát!`, 1);
+              draw();
+            } else { sfx.wrong(); toast(`Ešte ti chýba ${it.cost - getDiamonds()} 💎`); }
+          });
+          row.appendChild(btn);
+        }
+        adoptList.appendChild(row);
       });
+      container.appendChild(adoptList);
+
+      // ——— ozdoby dedinky ———
+      const decoPool = COLLECTIBLES.filter(c => c.cat === 'rastliny' || c.cat === 'zabava');
+      const decoOwned = new Set(decos);
+      container.appendChild(el('h3', 'shop-title',
+        `🌳 Ozdoby dedinky <span class="muted">(${decoOwned.size}/${decoPool.length})</span>`));
+      const decoList = el('div', 'shop-list');
+      decoPool.forEach(it => {
+        const row = el('div', 'shop-item');
+        row.appendChild(el('span', 'shop-emoji', it.emoji));
+        const inf = el('div', 'shop-info');
+        inf.appendChild(el('div', 'shop-name', it.name));
+        inf.appendChild(el('div', 'shop-cost', `${it.cost} 💎`));
+        row.appendChild(inf);
+        if (decoOwned.has(it.id)) {
+          row.appendChild(el('span', 'shop-owned', '✔️ máš'));
+        } else {
+          const btn = el('button', 'btn btn-green', 'Kúpiť');
+          btn.addEventListener('click', () => {
+            ensureAudio();
+            if (spend(it.cost)) {
+              const arr = lsGet('decos2', []);
+              arr.push(it.id);
+              lsSet('decos2', arr);
+              sfx.place(); confetti(8);
+              toast(`Pribudlo: ${it.name}! 🎉`, 1800);
+              draw();
+            } else { sfx.wrong(); toast(`Ešte ti chýba ${it.cost - getDiamonds()} 💎`); }
+          });
+          row.appendChild(btn);
+        }
+        decoList.appendChild(row);
+      });
+      container.appendChild(decoList);
 
       const goPlay = el('button', 'btn btn-primary btn-big', '🎮 Poď hrať a zbierať 💎');
       goPlay.addEventListener('click', () => { location.hash = ''; });
@@ -2120,6 +2352,7 @@ export const GAMES = [
   gamePeniaze,
   gameTvary,
   gameCitanie,
+  gameAnglictina,
   gameMalovanka,
   gameSvet,
 ];

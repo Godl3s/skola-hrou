@@ -11,6 +11,7 @@ import {
   makeState, onWrongDefault, trackResult, praiseNow,
   resultScreen, levelScreen, armIdleHint, disarmIdleHint, numPad,
 } from './shared.js';
+import { diffLevel, reportAnswer } from './adaptive.js';
 
 function makeOptions(ans, max = 20, step = 1) {
   const set = new Set([ans]);
@@ -53,9 +54,12 @@ export const gameHlavolamy = {
       let idx = 0, score = 0; // score = úplne správne hady
 
       const genChain = () => {
+        // adaptívne: L1 = 2 kroky do 10, L2 = 3 kroky do 20, L3 = 4 kroky aj ±10
+        const d = diffLevel('hlavolamy:had');
+        const cap = d === 1 ? 10 : 20;
         for (let t = 0; t < 120; t++) {
-          const steps = idx < 2 ? 3 : 4;
-          let v = randInt(1, 10);
+          const steps = d === 1 ? 2 : d === 2 ? 3 : 4;
+          let v = randInt(1, d === 1 ? 8 : 10);
           const chain = { start: v, ops: [], values: [] };
           let ok = true;
           for (let i = 0; i < steps; i++) {
@@ -65,10 +69,10 @@ export const gameHlavolamy = {
             if (prev.length === 2 && prev[0].op === op && prev[1].op === op) {
               op = op === '+' ? '−' : '+';
             }
-            // v neskorších hadoch občas krok ±10 (učebnicová reťazovka)
-            const n = (idx >= 3 && Math.random() < 0.25) ? 10 : randInt(1, 9);
+            // na najvyššej úrovni občas krok ±10 (učebnicová reťazovka)
+            const n = (d === 3 && Math.random() < 0.25) ? 10 : randInt(1, d === 1 ? 4 : 9);
             const nv = op === '+' ? v + n : v - n;
-            if (nv < 0 || nv > 20) { ok = false; break; }
+            if (nv < 0 || nv > cap) { ok = false; break; }
             chain.ops.push({ op, n });
             chain.values.push(nv);
             v = nv;
@@ -119,6 +123,7 @@ export const gameHlavolamy = {
             if (okStep) correctSteps++;
             else cellEls[i].appendChild(el('span', 'snake-fix', String(v)));
             recordResult({ game: 'hlavolamy', gameName: 'Hlavolamy', skill: 'hlavolamy:had', skillName: 'Počítací had', firstTry: okStep });
+            reportAnswer('hlavolamy:had', okStep);
             if (!okStep) {
               const from = i === 0 ? chain.start : chain.values[i - 1];
               recordMistake({
@@ -182,8 +187,10 @@ export const gameHlavolamy = {
       let idx = 0, score = 0;
 
       const gen = () => {
+        const d = diffLevel('hlavolamy:pyramida');
+        const hi = d === 1 ? 4 : 6;
         for (let t = 0; t < 60; t++) {
-          const a = randInt(1, 6), b = randInt(1, 6), c = randInt(1, 6);
+          const a = randInt(1, hi), b = randInt(1, hi), c = randInt(1, hi);
           if (a + 2 * b + c <= 20) return { a, b, c, m1: a + b, m2: b + c, top: a + 2 * b + c };
         }
         return { a: 2, b: 3, c: 1, m1: 5, m2: 4, top: 9 };
@@ -193,8 +200,8 @@ export const gameHlavolamy = {
         if (idx >= TOTAL) { resultScreen(container, score, TOTAL, startPyramida); return; }
         dots.set(idx, 'current');
         const p = gen();
-        // od 4. pyramídy obrátený variant: stredy dané, chýba spodná tehlička
-        const inverse = idx >= 3;
+        // na vyššej náročnosti obrátený variant: stredy dané, chýba spodná tehlička
+        const inverse = diffLevel('hlavolamy:pyramida') >= 2 && idx % 2 === 1;
         const targets = inverse
           ? [
             { key: 'b', val: p.b, hintA: p.m1, hintB: p.a, hintOp: '−' },
@@ -272,6 +279,7 @@ export const gameHlavolamy = {
                 toast(`${sample(PRAISES)} Pyramída hotová! +${gain} 💎`, 2400);
                 speak(firstTry ? 'Pyramída bez jedinej chyby! Fantastické!' : 'Pyramída hotová!', 0.95);
                 recordResult({ game: 'hlavolamy', gameName: 'Hlavolamy', skill: 'hlavolamy:pyramida', skillName: 'Súčtová pyramída', firstTry });
+                reportAnswer('hlavolamy:pyramida', firstTry);
                 dots.set(idx, firstTry ? 'ok' : 'bad');
                 idx++;
                 later(next, 2000);
@@ -312,9 +320,12 @@ export const gameHlavolamy = {
       let idx = 0, score = 0;
 
       const gen = () => {
-        const kind = sample(idx < 3
+        const d = diffLevel('hlavolamy:rad');
+        const kind = sample(d === 1
           ? ['up1', 'down1', 'sused']
-          : ['up1', 'down1', 'up2', 'up5', 'up10', 'down10', 'sused']);
+          : d === 2
+            ? ['up1', 'down1', 'up2', 'up5', 'sused']
+            : ['up1', 'down1', 'up2', 'up5', 'up10', 'down10', 'sused']);
         if (kind === 'sused') {
           const n = randInt(2, 19);
           const before = Math.random() < 0.5;
@@ -438,21 +449,28 @@ export const gameHlavolamy = {
       const next = () => {
         if (idx >= TOTAL) { resultScreen(container, score, TOTAL, startRozklad); return; }
         dots.set(idx, 'current');
-        // metodická gradácia: rozklady do 10 → doplnky do 10 → desiatka a
-        // jednotky (14 = 10 + ▢) → dvojciferné (47 = 40 + ▢)
+        // metodická gradácia podľa adaptívnej náročnosti:
+        // L1 rozklady do 10 → L2 doplnky do 10 a desiatka+jednotky →
+        // L3 aj dvojciferné (47 = 40 + ▢)
+        const d = diffLevel('hlavolamy:rozklad');
         let total, known;
-        if (idx < 3) {
+        if (d === 1) {
           total = randInt(5, 10);
           known = randInt(1, total - 1);
-        } else if (idx < 5) {
-          total = 10; // doplnky do 10 – kľúč k prechodu cez desiatku
-          known = randInt(1, 9);
-        } else if (idx < 7) {
-          total = randInt(11, 19);
-          known = Math.random() < 0.5 ? 10 : total - 10; // 14 = 10 + ▢ / 14 = ▢ + 4
-        } else {
+        } else if (d === 2) {
+          if (idx % 2 === 0) {
+            total = 10; // doplnky do 10 – kľúč k prechodu cez desiatku
+            known = randInt(1, 9);
+          } else {
+            total = randInt(11, 19);
+            known = Math.random() < 0.5 ? 10 : total - 10; // 14 = 10 + ▢
+          }
+        } else if (idx % 3 === 2) {
           total = randInt(2, 9) * 10 + randInt(1, 9); // 47 = 40 + ▢
           known = Math.floor(total / 10) * 10;
+        } else {
+          total = randInt(11, 20);
+          known = randInt(1, total - 1);
         }
         const ans = total - known;
         const side = Math.random() < 0.5 ? 'left' : 'right';
@@ -510,9 +528,21 @@ export const gameHlavolamy = {
     };
 
     // ===== 📖 Slovné úlohy =====
+    // náročnosť úlohy: 1 = do 10, 2 = do 20, 3 = do 100, 4 = násobenie
+    // (násobenie sa zatiaľ nedáva – prváčka ho ešte nemala)
+    const problemLvl = (p) => {
+      if ((p.hint || '').includes('krát')) return 4;
+      const nums = (p.text.match(/\d+/g) || []).map(Number);
+      const mx = Math.max(p.answer, ...nums);
+      if (mx <= 10) return 1;
+      if (mx <= 20) return 2;
+      return 3;
+    };
     const startSlovne = () => {
       const TOTAL = 6;
-      const items = pickFresh(WORD_PROBLEMS, TOTAL, 'slovne', x => x.text);
+      const d = diffLevel('hlavolamy:slovne');
+      const pool = WORD_PROBLEMS.filter(p => problemLvl(p) <= d);
+      const items = pickFresh(pool, TOTAL, 'slovne' + d, x => x.text);
       const dots = progressDots(TOTAL);
       let idx = 0, score = 0;
 
@@ -590,7 +620,7 @@ export const gameVelka = {
       [
         { emoji: '🔟', label: 'Desiatky (30 + 40)', mode: 'desiatky' },
         { emoji: '💯', label: 'Počítanie do 100', mode: 'do100' },
-        { emoji: '✖️', label: 'Násobilka (3 × 2)', mode: 'nasobilka' },
+        { emoji: '✖️', label: 'Násobilka – predpríprava', mode: 'nasobilka' },
       ],
       lvl => ({ desiatky: startDesiatky, do100: startDo100, nasobilka: startNasobilka }[lvl.mode]())
     );

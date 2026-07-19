@@ -10,11 +10,15 @@ if ('speechSynthesis' in window) {
   speechSynthesis.onvoiceschanged = loadVoices;
 }
 
-function pickVoice() {
-  const sk = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('sk'));
-  if (sk) return sk;
-  const cs = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('cs'));
-  return cs || null;
+function pickVoice(lang = 'sk') {
+  const primary = lang.slice(0, 2).toLowerCase();
+  const exact = voices.find(v => v.lang && v.lang.toLowerCase().startsWith(primary));
+  if (exact) return exact;
+  if (primary === 'sk') {
+    const cs = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('cs'));
+    return cs || null;
+  }
+  return null;
 }
 
 export function hasSlovakVoice() {
@@ -25,14 +29,14 @@ export function canSpeak() {
   return 'speechSynthesis' in window;
 }
 
-export function speak(text, rate = 0.85) {
+export function speak(text, rate = 0.85, lang = 'sk-SK') {
   return new Promise(resolve => {
     if (!canSpeak()) return resolve(false);
     try {
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'sk-SK';
-      const v = pickVoice();
+      u.lang = lang;
+      const v = pickVoice(lang);
       if (v) u.voice = v;
       u.rate = rate;
       u.pitch = 1.05;

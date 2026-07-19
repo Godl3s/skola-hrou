@@ -311,16 +311,31 @@ export const HOUSE_STEPS = [
 
 // ===== Levely (postup podľa nazbieraných diamantov) =====
 export const LEVELS = [
-  { need: 0,   title: 'Nováčik',   emoji: '🐣' },
-  { need: 12,  title: 'Kopáč',     emoji: '⛏️' },
-  { need: 28,  title: 'Staviteľ',  emoji: '🧱' },
-  { need: 50,  title: 'Baník',     emoji: '💎' },
-  { need: 80,  title: 'Dobrodruh', emoji: '🧭' },
-  { need: 120, title: 'Rytier',    emoji: '🛡️' },
-  { need: 170, title: 'Majster',   emoji: '🏅' },
-  { need: 230, title: 'Šampión',   emoji: '🏆' },
-  { need: 300, title: 'Hrdina',    emoji: '🦸' },
-  { need: 400, title: 'Legenda',   emoji: '👑' },
+  { need: 0,    title: 'Nováčik',            emoji: '🐣' },
+  { need: 12,   title: 'Kopáč',              emoji: '⛏️' },
+  { need: 28,   title: 'Staviteľ',           emoji: '🧱' },
+  { need: 50,   title: 'Baník',              emoji: '💎' },
+  { need: 80,   title: 'Dobrodruh',          emoji: '🧭' },
+  { need: 120,  title: 'Rytier',             emoji: '🛡️' },
+  { need: 170,  title: 'Majster',            emoji: '🏅' },
+  { need: 230,  title: 'Šampión',            emoji: '🏆' },
+  { need: 300,  title: 'Hrdina',             emoji: '🦸' },
+  { need: 400,  title: 'Legenda',            emoji: '👑' },
+  { need: 550,  title: 'Hviezda',            emoji: '🌟' },
+  { need: 750,  title: 'Superhviezda',       emoji: '💫' },
+  { need: 1000, title: 'Objaviteľka',        emoji: '🔭' },
+  { need: 1300, title: 'Vynálezkyňa',        emoji: '💡' },
+  { need: 1650, title: 'Kúzelníčka',         emoji: '✨' },
+  { need: 2050, title: 'Víla',               emoji: '🧚' },
+  { need: 2500, title: 'Dúhová majsterka',   emoji: '🌈' },
+  { need: 3000, title: 'Raketa',             emoji: '🚀' },
+  { need: 3600, title: 'Hviezdna kapitánka', emoji: '🛸' },
+  { need: 4300, title: 'Vesmírna kráľovná',  emoji: '🌌' },
+  { need: 5100, title: 'Slnečná',            emoji: '🌞' },
+  { need: 6000, title: 'Diamantová',         emoji: '💠' },
+  { need: 7000, title: 'Zlatá',              emoji: '🥇' },
+  { need: 8100, title: 'Platinová',          emoji: '🎖️' },
+  { need: 9300, title: 'Nekonečná legenda',  emoji: '♾️' },
 ];
 
 // ===== Dedinka – domov sa postupne vylepšuje (míňanie diamantov) =====
@@ -764,8 +779,14 @@ export const MISSIONS = [
   { id: 'm39', emoji: '📖', name: 'Slovné úlohy', desc: 'Vyrieš 5 slovných úloh', skill: 'hlavolamy:slovne', need: 5, reward: 15, route: 'hlavolamy' },
   { id: 'm40', emoji: '🔟', name: 'Desiatková', desc: 'Vypočítaj 5 príkladov s desiatkami (30 + 40)', skill: 'velka:desiatky', need: 5, reward: 15, route: 'velka' },
   { id: 'm41', emoji: '💯', name: 'Stovkárka', desc: 'Vypočítaj 6 príkladov do 100', skill: 'velka:do100', need: 6, reward: 16, route: 'velka' },
-  { id: 'm42', emoji: '✖️', name: 'Násobilka', desc: 'Vypočítaj 6 príkladov násobilky', skill: 'velka:nasobilka', need: 6, reward: 18, route: 'velka' },
+  { id: 'm42', emoji: '📖', name: 'Rozprávkárka', desc: 'Vyrieš ďalších 6 slovných úloh', skill: 'hlavolamy:slovne', need: 6, reward: 18, route: 'hlavolamy' },
   { id: 'm43', emoji: '🏆', name: 'Veľmajsterka', desc: 'Vypočítaj ďalších 10 krokov hada', skill: 'hlavolamy:had', need: 10, reward: 30, route: 'hlavolamy' },
+  // — 4. kapitola: angličtina a abeceda —
+  { id: 'm44', emoji: '🇬🇧', name: 'Prvé slovíčka', desc: 'Uhádni 5 anglických slovíčok', skill: 'en:word', need: 5, reward: 15, route: 'anglictina' },
+  { id: 'm45', emoji: '🔡', name: 'Abecedárka', desc: 'Doplň 5× písmeno v abecede', skill: 'citanie:abeceda', need: 5, reward: 15, route: 'citanie' },
+  { id: 'm46', emoji: '🎧', name: 'Anglické ušká', desc: 'Vypočuj a uhádni 5 anglických slov', skill: 'en:listen', need: 5, reward: 16, route: 'anglictina' },
+  { id: 'm47', emoji: '🎨', name: 'Farbičky po anglicky', desc: 'Uhádni 5 anglických farieb', skill: 'en:colors', need: 5, reward: 16, route: 'anglictina' },
+  { id: 'm48', emoji: '👑', name: 'Kráľovná školy', desc: 'Vyrieš ďalších 8 slovných úloh', skill: 'hlavolamy:slovne', need: 8, reward: 35, route: 'hlavolamy' },
 ];
 
 // ===== Slovné úlohy (overené výpočty) =====
