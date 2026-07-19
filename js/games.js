@@ -17,6 +17,7 @@ import { recordResult, recordMistake } from './stats.js';
 import { hasSpeechRecognition, listenOnce, matchesWord, matchesSentence } from './speech.js';
 import { gameKampan } from './campaign.js';
 import { gamePeniaze, gameTvary } from './games2.js';
+import { gameHlavolamy, gameVelka } from './games3.js';
 import {
   praiseNow, levelScreen, resultScreen, highlightWord, ttsHintBanner,
   cursiveToggle, makeState, onWrongDefault, trackResult,
@@ -319,6 +320,7 @@ const MATIKA_NAMES = {
   add10: 'Sčítanie do 10', sub10: 'Odčítanie do 10', mix20: 'Plus/mínus do 20',
   missing: 'Doplň číslo', compare: 'Porovnávanie', count: 'Počítanie predmetov',
   mem20: 'Pamäťové do 20', chain: 'Kombinované počítanie', parity: 'Párne a nepárne',
+  sign: 'Doplň znamienko',
 };
 function makeOptions(ans, max = 20) {
   const set = new Set([ans]);
@@ -348,7 +350,8 @@ const gameMatika = {
         { emoji: '🚀', label: 'Plus a mínus do 20', type: 'mix20' },
         { emoji: '🧠', label: 'Pamäťové do 20 (z hlavy)', type: 'mem20' },
         { emoji: '🔗', label: 'Kombinované (3 + 4 − 2)', type: 'chain' },
-        { emoji: '🧩', label: 'Doplň číslo (5 + ▢ = 8)', type: 'missing' },
+        { emoji: '🧩', label: 'Doplň číslo (15 − ▢ = 10)', type: 'missing' },
+        { emoji: '➕➖', label: 'Doplň znamienko (8 ▢ 3 = 5)', type: 'sign' },
         { emoji: '⚖️', label: 'Porovnaj čísla', type: 'compare' },
         { emoji: '👯', label: 'Párne a nepárne', type: 'parity' },
       ],
@@ -356,7 +359,8 @@ const gameMatika = {
         : lvl.type === 'missing' ? startMissing(lvl)
         : lvl.type === 'count' ? startCount(lvl)
         : lvl.type === 'chain' ? startChain(lvl)
-        : lvl.type === 'parity' ? startParity(lvl) : start(lvl))
+        : lvl.type === 'parity' ? startParity(lvl)
+        : lvl.type === 'sign' ? startSign(lvl) : start(lvl))
     );
 
     const genProblem = (type) => {
@@ -453,7 +457,21 @@ const gameMatika = {
         panel.appendChild(grid);
         container.appendChild(panel);
 
-        armIdleHint(() => speakMath(p.a, p.b, p.op), reveal);
+        // metodická pomôcka pri pamäťovom počítaní: rozklad cez desiatku
+        const strategyHint = () => {
+          if (lvl.type === 'mem20' && p.op === '+' && p.a < 10 && p.a + p.b > 10) {
+            const toTen = 10 - p.a;
+            const rest = p.b - toTen;
+            speak(`Pomôcka: najprv doplň do desať. ${numberToSlovak(p.a)} plus ${numberToSlovak(toTen)} je desať, a ešte ${numberToSlovak(rest)}.`, 0.85);
+          } else if (lvl.type === 'mem20' && p.op === '−' && p.a > 10 && p.a - p.b < 10) {
+            const toTen = p.a - 10;
+            const rest = p.b - toTen;
+            speak(`Pomôcka: najprv odčítaj po desať. ${numberToSlovak(p.a)} mínus ${numberToSlovak(toTen)} je desať, a ešte mínus ${numberToSlovak(rest)}.`, 0.85);
+          } else {
+            speakMath(p.a, p.b, p.op);
+          }
+        };
+        armIdleHint(strategyHint, reveal);
         later(() => speakMath(p.a, p.b, p.op), 350);
       };
       next();
@@ -465,15 +483,31 @@ const gameMatika = {
       let idx = 0, score = 0;
 
       const gen = () => {
-        const a = randInt(1, 9);
-        const b = randInt(1, 9);
-        const c = a + b;
-        if (Math.random() < 0.5) return { text: `${a} + ▢ = ${c}`, ans: b, a, c, first: true };
-        return { text: `▢ + ${b} = ${c}`, ans: a, b, c, first: false };
+        const kind = randInt(0, 3);
+        if (kind === 0) {
+          // a + ▢ = c
+          const a = randInt(1, 9), b = randInt(1, 9);
+          return { text: `${a} + ▢ = ${a + b}`, ans: b, kind, a, b, c: a + b };
+        }
+        if (kind === 1) {
+          // ▢ + b = c
+          const a = randInt(1, 9), b = randInt(1, 9);
+          return { text: `▢ + ${b} = ${a + b}`, ans: a, kind, a, b, c: a + b };
+        }
+        if (kind === 2) {
+          // a − ▢ = c  (napr. 15 − ▢ = 10)
+          const a = randInt(4, 18), b = randInt(1, a - 1);
+          return { text: `${a} − ▢ = ${a - b}`, ans: b, kind, a, b, c: a - b };
+        }
+        // ▢ − b = c  (napr. ▢ − 4 = 6)
+        const b = randInt(1, 9), c = randInt(1, 11);
+        return { text: `▢ − ${b} = ${c}`, ans: b + c, kind, b, c };
       };
       const say = (p) => {
-        if (p.first) speak(`${numberToSlovak(p.a)} plus koľko je ${numberToSlovak(p.c)}?`, 0.85);
-        else speak(`Koľko plus ${numberToSlovak(p.b)} je ${numberToSlovak(p.c)}?`, 0.85);
+        if (p.kind === 0) speak(`${numberToSlovak(p.a)} plus koľko je ${numberToSlovak(p.c)}?`, 0.85);
+        else if (p.kind === 1) speak(`Koľko plus ${numberToSlovak(p.b)} je ${numberToSlovak(p.c)}?`, 0.85);
+        else if (p.kind === 2) speak(`${numberToSlovak(p.a)} mínus koľko je ${numberToSlovak(p.c)}?`, 0.85);
+        else speak(`Koľko mínus ${numberToSlovak(p.b)} je ${numberToSlovak(p.c)}?`, 0.85);
       };
 
       const next = () => {
@@ -495,7 +529,7 @@ const gameMatika = {
         const grid = el('div', 'answers-grid');
         const btnFor = {};
         const reveal = () => { if (btnFor[p.ans]) btnFor[p.ans].classList.add('hint'); };
-        makeOptions(p.ans, 12).forEach(opt => {
+        makeOptions(p.ans, 20).forEach(opt => {
           const b = el('button', 'btn', String(opt));
           btnFor[opt] = b;
           b.addEventListener('click', () => {
@@ -524,6 +558,81 @@ const gameMatika = {
         panel.appendChild(grid);
         container.appendChild(panel);
 
+        later(() => say(p), 350);
+      };
+      next();
+    };
+
+    const startSign = (lvl) => {
+      const TOTAL = 10;
+      const dots = progressDots(TOTAL);
+      let idx = 0, score = 0;
+
+      const gen = () => {
+        // a ▢ b = c, jednoznačné: b ≥ 1, a ± b v obore 0..20
+        for (let t = 0; t < 40; t++) {
+          const op = Math.random() < 0.5 ? '+' : '−';
+          const a = randInt(1, 15);
+          const b = randInt(1, 9);
+          const c = op === '+' ? a + b : a - b;
+          if (c < 0 || c > 20) continue;
+          return { a, b, c, op };
+        }
+        return { a: 8, b: 3, c: 5, op: '−' };
+      };
+      const say = (p) => speak(
+        `${numberToSlovak(p.a)}, ${numberToSlovak(p.b)}, rovná sa ${numberToSlovak(p.c)}. Plus alebo mínus?`, 0.85);
+
+      const next = () => {
+        if (idx >= TOTAL) { resultScreen(container, score, TOTAL, () => startSign(lvl)); return; }
+        dots.set(idx, 'current');
+        const p = gen();
+        const st = makeState();
+
+        container.innerHTML = '';
+        container.appendChild(dots.node);
+        const panel = el('div', 'game-panel');
+        panel.appendChild(el('div', 'math-expr', `${p.a} ▢ ${p.b} = ${p.c}`));
+        panel.appendChild(el('p', '', 'Aké znamienko patrí do políčka ▢?'));
+
+        const replay = el('button', 'btn btn-blue', '🔊 Prečítaj príklad');
+        replay.addEventListener('click', () => { ensureAudio(); say(p); });
+        panel.appendChild(replay);
+
+        const grid = el('div', 'answers-grid');
+        const btnFor = {};
+        const reveal = () => { if (btnFor[p.op]) btnFor[p.op].classList.add('hint'); };
+        shuffle(['+', '−']).forEach(op => {
+          const b = el('button', 'btn btn-huge', op);
+          btnFor[op] = b;
+          b.addEventListener('click', () => {
+            if (st.locked) return;
+            ensureAudio();
+            if (op === p.op) {
+              st.locked = true;
+              b.classList.add('correct');
+              b.classList.remove('hint');
+              sfx.correct();
+              speak(`Áno! ${numberToSlovak(p.a)} ${p.op === '+' ? 'plus' : 'mínus'} ${numberToSlovak(p.b)} je ${numberToSlovak(p.c)}.`, 0.9);
+              if (st.firstTry) { score++; award(1); confetti(6); toast(`${sample(PRAISES)} +1 💎`); }
+              else toast(sample(PRAISES));
+              trackResult(st, { game: 'matika', gameName: 'Počítanie', skill: 'matika:sign', skillName: MATIKA_NAMES.sign });
+              dots.set(idx, st.firstTry ? 'ok' : 'bad');
+              idx++;
+              later(next, 1700);
+            } else {
+              onWrongDefault(st, b, reveal, {
+                skill: 'matika:sign', skillName: MATIKA_NAMES.sign,
+                label: `${p.a} ? ${p.b} = ${p.c}`, chose: op, correct: p.op,
+              });
+            }
+          });
+          grid.appendChild(b);
+        });
+        panel.appendChild(grid);
+        container.appendChild(panel);
+
+        armIdleHint(() => say(p), reveal);
         later(() => say(p), 350);
       };
       next();
@@ -2005,6 +2114,8 @@ export const GAMES = [
   gameLogopedia,
   gameZvuky,
   gameMatika,
+  gameHlavolamy,
+  gameVelka,
   gameHodiny,
   gamePeniaze,
   gameTvary,

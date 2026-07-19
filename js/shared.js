@@ -113,6 +113,51 @@ export function trackResult(st, meta) {
   recordResult({ ...meta, firstTry: st.firstTry });
 }
 
+// ===== Číselná klávesnica (0–99) pre hadíka, pyramídy… =====
+// onChange(text) sa volá pri každej zmene, onOk(number) po ✔.
+export function numPad({ onChange, onOk }) {
+  let value = '';
+  const node = el('div', 'numpad');
+  const emit = () => { if (onChange) onChange(value); };
+  const press = (d) => {
+    ensureAudio(); sfx.click();
+    if (value.length >= 2) return;
+    if (value === '0') value = ''; // 07 → 7
+    value += d;
+    emit();
+  };
+  [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(d => {
+    const b = el('button', 'btn', String(d));
+    b.addEventListener('click', () => press(String(d)));
+    node.appendChild(b);
+  });
+  const back = el('button', 'btn', '⌫');
+  back.addEventListener('click', () => {
+    ensureAudio(); sfx.click();
+    value = value.slice(0, -1);
+    emit();
+  });
+  node.appendChild(back);
+  const zero = el('button', 'btn', '0');
+  zero.addEventListener('click', () => press('0'));
+  node.appendChild(zero);
+  const ok = el('button', 'btn btn-green', '✔');
+  ok.addEventListener('click', () => {
+    ensureAudio();
+    if (value === '') { sfx.wrong(); toast('Napíš číslo a potom ✔'); return; }
+    const n = parseInt(value, 10);
+    value = '';
+    emit();
+    if (onOk) onOk(n);
+  });
+  node.appendChild(ok);
+  return {
+    node,
+    reset() { value = ''; emit(); },
+    get() { return value; },
+  };
+}
+
 // ===== Automatická rada pri dlhom váhaní =====
 // Po ~12 s poradí a zopakuje zadanie, po ~22 s rozsvieti správnu odpoveď.
 let hintSeq = 0;

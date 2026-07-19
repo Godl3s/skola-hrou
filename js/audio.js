@@ -52,8 +52,18 @@ const SK_NUM = [
   'deväť', 'desať', 'jedenásť', 'dvanásť', 'trinásť', 'štrnásť', 'pätnásť',
   'šestnásť', 'sedemnásť', 'osemnásť', 'devätnásť', 'dvadsať',
 ];
+const SK_TENS = {
+  20: 'dvadsať', 30: 'tridsať', 40: 'štyridsať', 50: 'päťdesiat',
+  60: 'šesťdesiat', 70: 'sedemdesiat', 80: 'osemdesiat', 90: 'deväťdesiat',
+};
 export function numberToSlovak(n) {
   if (n >= 0 && n < SK_NUM.length) return SK_NUM[n];
+  if (n === 100) return 'sto';
+  if (n > 20 && n < 100) {
+    const t = Math.floor(n / 10) * 10;
+    const u = n % 10;
+    return SK_TENS[t] + (u ? SK_NUM[u] : '');
+  }
   return String(n);
 }
 export function speakNumber(n) { return speak(numberToSlovak(n), 0.9); }
